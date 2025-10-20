@@ -28,9 +28,7 @@ class AsistenciaGuardApp extends StatelessWidget {
           title: 'AsistenciaGuard',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(useMaterial3: true),
-          home: data.isAuthenticated
-              ? const DashboardScreen()
-              : const LoginScreen(),
+          home: data.isAuthenticated ? const MainScreen() : const LoginScreen(),
         );
       },
     );
