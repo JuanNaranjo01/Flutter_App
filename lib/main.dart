@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/face_registration_screen.dart';
 import 'screens/face_recognition_screen.dart';
@@ -11,7 +11,7 @@ import 'providers/data_provider.dart';
 void main() {
   runApp(
     ChangeNotifierProvider(
-      create: (context) => DataProvider(),
+      create: (_) => DataProvider(),
       child: const AsistenciaGuardApp(),
     ),
   );
@@ -22,19 +22,17 @@ class AsistenciaGuardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AsistenciaGuard',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF3b82f6),
-          brightness: Brightness.light,
-        ),
-        textTheme: GoogleFonts.interTextTheme(),
-        scaffoldBackgroundColor: const Color(0xFFF9FAFB),
-      ),
-      home: const MainScreen(),
+    return Consumer<DataProvider>(
+      builder: (context, data, _) {
+        return MaterialApp(
+          title: 'AsistenciaGuard',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(useMaterial3: true),
+          home: data.isAuthenticated
+              ? const DashboardScreen()
+              : const LoginScreen(),
+        );
+      },
     );
   }
 }
@@ -92,7 +90,10 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.calendar_today),
             label: 'Asistencias',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Gestión'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Gestión',
+          ),
         ],
       ),
     );
