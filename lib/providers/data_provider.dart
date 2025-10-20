@@ -1,9 +1,13 @@
+import 'package:asistencia_guard/models/teacher.dart';
 import 'package:flutter/foundation.dart';
 import '../models/registered_face.dart';
 import '../models/attendance_record.dart';
 
 class DataProvider with ChangeNotifier {
   final List<Teacher> _teachers = [
+    Teacher(
+      id: '1',
+      codigo: 'DOC12345',
       nombre: 'Dr. Juan Carlos Pérez',
       email: 'juan.perez@uceva.edu.co',
       departamento: 'Ingeniería de Sistemas',
@@ -46,7 +50,6 @@ class DataProvider with ChangeNotifier {
     _isAuthenticated = false;
     notifyListeners();
   }
-
 
   final List<RegisteredFace> _registeredFaces = [
     RegisteredFace(
