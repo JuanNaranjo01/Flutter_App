@@ -6,6 +6,30 @@ import '../providers/data_provider.dart';
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Cerrar Sesión'),
+          content: const Text('¿Está seguro que desea cerrar sesión?'),
+          actions: [
+            TextButton(
+                child: const Text('Cancelar'),
+                onPressed: () => Navigator.of(ctx).pop()),
+            TextButton(
+              child: const Text('Cerrar sesión'),
+              onPressed: () {
+                context.read<DataProvider>().logout();
+                Navigator.of(ctx).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -13,27 +37,42 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Panel de Control',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              'Sistema de Control de Asistencias',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-          ],
+        title: Consumer<DataProvider>(
+          builder: (context, data, child) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Panel de Control',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  data.currentTeacher != null
+                      ? 'Bienvenido, ${data.currentTeacher!.nombre}'
+                      : 'Sistema de Control de Asistencias',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black),
+            onPressed: () {
+              _showLogoutDialog(context);
+            },
+            tooltip: 'Cerrar Sesión',
+          ),
+        ],
       ),
       body: Consumer<DataProvider>(
         builder: (context, data, child) {
