@@ -1,9 +1,10 @@
-import 'package:asistencia_guard/models/teacher.dart';
 import 'package:flutter/foundation.dart';
 import '../models/registered_face.dart';
 import '../models/attendance_record.dart';
+import '../models/teacher.dart';
 
 class DataProvider with ChangeNotifier {
+  // Lista de docentes simulados (en producción esto vendría de un backend)
   final List<Teacher> _teachers = [
     Teacher(
       id: '1',
@@ -44,6 +45,21 @@ class DataProvider with ChangeNotifier {
     }
   }
 
+  // Método de login con email
+  bool loginWithEmail(String email) {
+    try {
+      final teacher = _teachers.firstWhere(
+        (t) => t.email.toLowerCase() == email.toLowerCase(),
+      );
+      _currentTeacher = teacher;
+      _isAuthenticated = true;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Método de logout
   void logout() {
     _currentTeacher = null;
@@ -51,7 +67,7 @@ class DataProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  final List<RegisteredFace> _registeredFaces = [
+  List<RegisteredFace> _registeredFaces = [
     RegisteredFace(
       id: '1',
       name: 'María González López',

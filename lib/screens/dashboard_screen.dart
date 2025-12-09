@@ -9,20 +9,33 @@ class DashboardScreen extends StatelessWidget {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext ctx) {
+      builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Cerrar Sesión'),
           content: const Text('¿Está seguro que desea cerrar sesión?'),
           actions: [
             TextButton(
-                child: const Text('Cancelar'),
-                onPressed: () => Navigator.of(ctx).pop()),
-            TextButton(
-              child: const Text('Cerrar sesión'),
               onPressed: () {
-                context.read<DataProvider>().logout();
-                Navigator.of(ctx).pop();
+                Navigator.of(context).pop();
               },
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final dataProvider =
+                    Provider.of<DataProvider>(context, listen: false);
+                dataProvider.logout();
+                Navigator.of(context).pop();
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login',
+                  (Route<dynamic> route) => false,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Cerrar Sesión'),
             ),
           ],
         );
@@ -34,46 +47,6 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Consumer<DataProvider>(
-          builder: (context, data, child) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Panel de Control',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  data.currentTeacher != null
-                      ? 'Bienvenido, ${data.currentTeacher!.nombre}'
-                      : 'Sistema de Control de Asistencias',
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                    fontWeight: FontWeight.normal,
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.black),
-            onPressed: () {
-              _showLogoutDialog(context);
-            },
-            tooltip: 'Cerrar Sesión',
-          ),
-        ],
-      ),
       body: Consumer<DataProvider>(
         builder: (context, data, child) {
           final totalStudents = data.registeredFaces.length;
@@ -84,319 +57,435 @@ class DashboardScreen extends StatelessWidget {
               ? ((presentRecords / totalRecords) * 100).round()
               : 0;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Tarjetas de estadísticas
-                _buildStatsCards(totalStudents, attendanceRate, presentRecords),
-                const SizedBox(height: 20),
+          return CustomScrollView(
+            slivers: [
+              // App Bar con gradiente
+              SliverAppBar(
+                expandedHeight: 160,
+                pinned: true,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF2563EB), // blue-600
+                          Color(0xFF3B82F6), // blue-500
+                        ],
+                      ),
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.emoji_events,
+                                    color: Colors.white, size: 32),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'Bienvenido,',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              data.currentTeacher?.nombre ?? 'Docente',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              data.currentTeacher?.departamento ?? '',
+                              style: const TextStyle(
+                                color: Color(0xFFBFDBFE),
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.logout),
+                    onPressed: () => _showLogoutDialog(context),
+                    tooltip: 'Cerrar Sesión',
+                  ),
+                ],
+              ),
 
-                // Gráficas
-                _buildCharts(context, data),
-                const SizedBox(height: 20),
+              // Contenido
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // Tarjetas de estadísticas con gradientes
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildGradientStatCard(
+                              title: 'Estudiantes Registrados',
+                              value: totalStudents.toString(),
+                              icon: Icons.people,
+                              gradientColors: const [
+                                Color(0xFF3B82F6),
+                                Color(0xFF2563EB)
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildGradientStatCard(
+                              title: 'Tasa de Asistencia',
+                              value: '$attendanceRate%',
+                              icon: Icons.trending_up,
+                              gradientColors: const [
+                                Color(0xFF10B981),
+                                Color(0xFF059669)
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildGradientStatCard(
+                              title: 'Total Asistencias',
+                              value: presentRecords.toString(),
+                              icon: Icons.check_circle,
+                              gradientColors: const [
+                                Color(0xFF8B5CF6),
+                                Color(0xFF7C3AED)
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
 
-                // Actividad reciente y rostros
-                _buildBottomSection(data),
-              ],
-            ),
+                      // Gráfica de Tendencia - Versión mejorada
+                      _buildTrendChart(data),
+                      const SizedBox(height: 24),
+
+                      // Secciones de actividad y rostros
+                      _buildActivityAndFaces(data),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
     );
   }
 
-  Widget _buildStatsCards(
-      int totalStudents, int attendanceRate, int totalAttendances) {
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            title: 'Estudiantes',
-            value: totalStudents.toString(),
-            icon: Icons.people,
-            color: const Color(0xFF3b82f6),
+  Widget _buildGradientStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required List<Color> gradientColors,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: gradientColors[0].withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            title: 'Tasa',
-            value: '$attendanceRate%',
-            icon: Icons.trending_up,
-            color: const Color(0xFF10b981),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            title: 'Asistencias',
-            value: totalAttendances.toString(),
-            icon: Icons.check_circle,
-            color: const Color(0xFF8b5cf6),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCharts(BuildContext context, DataProvider data) {
-    return Column(
-      children: [
-        // Fila 1: Asistencia por Estudiante y Distribución
-        Row(
-          children: [
-            Expanded(
-              child: _ChartCard(
-                title: 'Asistencia por Estudiante',
-                child: _buildBarChart(data),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 13,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ChartCard(
-                title: 'Distribución General',
-                child: _buildPieChart(data),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Fila 2: Tendencia y Por Periodo
-        Row(
-          children: [
-            Expanded(
-              child: _ChartCard(
-                title: 'Tendencia',
-                child: _buildLineChart(data),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ChartCard(
-                title: 'Por Periodo',
-                child: _buildGroupedBarChart(data),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBarChart(DataProvider data) {
-    final studentData = data.registeredFaces.map((face) {
-      final records =
-          data.attendanceRecords.where((r) => r.codigo == face.codigo);
-      final present = records.where((r) => r.asistio).length;
-      final total = records.length;
-      final percentage = total > 0 ? (present / total) * 100 : 0;
-      return percentage;
-    }).toList();
-
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: 100,
-        barGroups: List.generate(
-          studentData.length,
-          (index) => BarChartGroupData(
-            x: index,
-            barRods: [
-              BarChartRodData(
-                toY: studentData[index].toDouble(),
-                color: const Color(0xFF3b82f6),
-                width: 16,
-                borderRadius: BorderRadius.circular(4),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: Colors.white, size: 24),
               ),
             ],
           ),
-        ),
-        titlesData: FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                if (value.toInt() < data.registeredFaces.length) {
-                  final name =
-                      data.registeredFaces[value.toInt()].name.split(' ')[0];
-                  return Text(name, style: const TextStyle(fontSize: 10));
-                }
-                return const Text('');
-              },
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          leftTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-      ),
-    );
-  }
-
-  Widget _buildPieChart(DataProvider data) {
-    final present = data.attendanceRecords.where((r) => r.asistio).length;
-    final absent = data.attendanceRecords.length - present;
-
-    return PieChart(
-      PieChartData(
-        sections: [
-          PieChartSectionData(
-            value: present.toDouble(),
-            title: '$present',
-            color: const Color(0xFF10b981),
-            radius: 50,
-            titleStyle: const TextStyle(
-                fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          PieChartSectionData(
-            value: absent.toDouble(),
-            title: '$absent',
-            color: const Color(0xFFef4444),
-            radius: 50,
-            titleStyle: const TextStyle(
-                fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
         ],
-        sectionsSpace: 2,
-        centerSpaceRadius: 30,
       ),
     );
   }
 
-  Widget _buildLineChart(DataProvider data) {
-    final dateMap = <String, int>{};
+  Widget _buildTrendChart(DataProvider data) {
+    // Preparar datos de tendencia
+    final dateMap = <String, Map<String, int>>{};
     for (var record in data.attendanceRecords) {
-      if (record.asistio) {
-        dateMap[record.fecha] = (dateMap[record.fecha] ?? 0) + 1;
+      if (!dateMap.containsKey(record.fecha)) {
+        dateMap[record.fecha] = {'asistencias': 0, 'total': 0};
       }
+      if (record.asistio) {
+        dateMap[record.fecha]!['asistencias'] =
+            dateMap[record.fecha]!['asistencias']! + 1;
+      }
+      dateMap[record.fecha]!['total'] = dateMap[record.fecha]!['total']! + 1;
     }
 
     final sortedDates = dateMap.keys.toList()..sort();
-    final spots = sortedDates.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), dateMap[entry.value]!.toDouble());
-    }).toList();
+    final spots = <FlSpot>[];
+    final totalSpots = <FlSpot>[];
 
-    if (spots.isEmpty) {
-      return const Center(child: Text('No hay datos'));
+    for (var i = 0; i < sortedDates.length; i++) {
+      final date = sortedDates[i];
+      spots
+          .add(FlSpot(i.toDouble(), dateMap[date]!['asistencias']!.toDouble()));
+      totalSpots.add(FlSpot(i.toDouble(), dateMap[date]!['total']!.toDouble()));
     }
 
-    return LineChart(
-      LineChartData(
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            color: const Color(0xFF8b5cf6),
-            barWidth: 3,
-            dotData: const FlDotData(show: false),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
-        titlesData: const FlTitlesData(show: false),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.trending_up,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tendencia de Asistencias',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'Evolución de asistencias a lo largo del tiempo',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 220,
+            child: LineChart(
+              LineChartData(
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: true,
+                    color: const Color(0xFF3B82F6),
+                    barWidth: 3,
+                    dotData: const FlDotData(show: true),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: const Color(0xFF3B82F6).withOpacity(0.1),
+                    ),
+                  ),
+                  LineChartBarData(
+                    spots: totalSpots,
+                    isCurved: true,
+                    color: const Color(0xFF94A3B8),
+                    barWidth: 2,
+                    dashArray: [5, 5],
+                    dotData: const FlDotData(show: true),
+                  ),
+                ],
+                titlesData: FlTitlesData(
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: true, reservedSize: 40),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      getTitlesWidget: (value, meta) {
+                        if (value.toInt() >= 0 &&
+                            value.toInt() < sortedDates.length) {
+                          final date = sortedDates[value.toInt()];
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              date.substring(5),
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: Colors.grey.withOpacity(0.2),
+                      strokeWidth: 1,
+                    );
+                  },
+                ),
+                borderData: FlBorderData(show: false),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildGroupedBarChart(DataProvider data) {
-    final periodMap = <String, Map<String, int>>{};
-
-    for (var record in data.attendanceRecords) {
-      if (!periodMap.containsKey(record.semestre)) {
-        periodMap[record.semestre] = {
-          '1er Corte': 0,
-          '2do Corte': 0,
-          '3er Corte': 0
-        };
-      }
-      if (record.asistio) {
-        periodMap[record.semestre]![record.corte] =
-            (periodMap[record.semestre]![record.corte] ?? 0) + 1;
-      }
-    }
-
-    final periods = periodMap.keys.toList()..sort();
-
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        barGroups: List.generate(
-          periods.length,
-          (index) {
-            final period = periods[index];
-            final data = periodMap[period]!;
-            return BarChartGroupData(
-              x: index,
-              barRods: [
-                BarChartRodData(
-                    toY: data['1er Corte']!.toDouble(),
-                    color: const Color(0xFF3b82f6),
-                    width: 8),
-                BarChartRodData(
-                    toY: data['2do Corte']!.toDouble(),
-                    color: const Color(0xFF10b981),
-                    width: 8),
-                BarChartRodData(
-                    toY: data['3er Corte']!.toDouble(),
-                    color: const Color(0xFFf59e0b),
-                    width: 8),
-              ],
-            );
-          },
-        ),
-        titlesData: const FlTitlesData(show: false),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-      ),
-    );
-  }
-
-  Widget _buildBottomSection(DataProvider data) {
+  Widget _buildActivityAndFaces(DataProvider data) {
     final recentActivity = data.attendanceRecords.reversed.take(5).toList();
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Actividad reciente
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.access_time, size: 20),
-                    SizedBox(width: 8),
-                    Text('Actividad Reciente',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFF97316), Color(0xFFEA580C)],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.access_time,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Actividad Reciente',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                ...recentActivity.map((record) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                const SizedBox(height: 16),
+                ...recentActivity.map((activity) => Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.grey.shade50,
+                            Colors.grey.shade100,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Row(
                         children: [
                           Container(
                             width: 8,
                             height: 8,
                             decoration: BoxDecoration(
-                              color: record.asistio ? Colors.green : Colors.red,
+                              color:
+                                  activity.asistio ? Colors.green : Colors.red,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -405,30 +494,48 @@ class DashboardScreen extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(record.nombre,
-                                    style: const TextStyle(fontSize: 12)),
-                                Text(record.materia,
-                                    style: const TextStyle(
-                                        fontSize: 10, color: Colors.grey)),
+                                Text(
+                                  activity.nombre,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  activity.materia,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                Text(
+                                  activity.fecha,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: record.asistio
-                                  ? Colors.green.shade50
-                                  : Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(4),
+                              color: activity.asistio
+                                  ? Colors.green.shade100
+                                  : Colors.red.shade100,
+                              borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              record.asistio ? 'Asistió' : 'Faltó',
+                              activity.asistio ? 'Asistió' : 'Faltó',
                               style: TextStyle(
-                                fontSize: 10,
-                                color: record.asistio
-                                    ? Colors.green.shade700
-                                    : Colors.red.shade700,
+                                fontSize: 11,
+                                color: activity.asistio
+                                    ? Colors.green.shade800
+                                    : Colors.red.shade800,
                               ),
                             ),
                           ),
@@ -440,51 +547,142 @@ class DashboardScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
+
+        // Rostros registrados
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.people, size: 20),
-                    SizedBox(width: 8),
-                    Text('Rostros Registrados',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.people,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Rostros Registrados',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                ...data.registeredFaces.map((face) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                const SizedBox(height: 16),
+                ...data.registeredFaces.map((face) => Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.grey.shade50,
+                            Colors.grey.shade100,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Row(
                         children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundImage: NetworkImage(face.imageUrl),
+                          Stack(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: const Color(0xFF3B82F6),
+                                    width: 2,
+                                  ),
+                                  image: DecorationImage(
+                                    image: NetworkImage(face.imageUrl),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(face.name,
-                                    style: const TextStyle(fontSize: 12)),
-                                Text(face.codigo,
-                                    style: const TextStyle(
-                                        fontSize: 10, color: Colors.grey)),
+                                Text(
+                                  face.name,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  face.codigo,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                          Text(
-                            '${face.confidence.toStringAsFixed(1)}%',
-                            style: const TextStyle(
-                                fontSize: 10, color: Colors.green),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                face.carrera,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                              Text(
+                                '${face.confidence}%',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF10B981),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -494,85 +692,6 @@ class DashboardScreen extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withAlpha((0.1 * 255).round()),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withAlpha((0.1 * 255).round()),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 12),
-          Text(value,
-              style:
-                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChartCard extends StatelessWidget {
-  final String title;
-  final Widget child;
-
-  const _ChartCard({required this.title, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 200,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style:
-                  const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          Expanded(child: child),
-        ],
-      ),
     );
   }
 }

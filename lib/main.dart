@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/face_registration_screen.dart';
 import 'screens/face_recognition_screen.dart';
 import 'screens/chat_interface_screen.dart';
-import 'screens/face_management_screen.dart';
 import 'providers/data_provider.dart';
 
 void main() {
   runApp(
     ChangeNotifierProvider(
-      create: (_) => DataProvider(),
+      create: (context) => DataProvider(),
       child: const AsistenciaGuardApp(),
     ),
   );
@@ -22,14 +22,23 @@ class AsistenciaGuardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<DataProvider>(
-      builder: (context, data, _) {
-        return MaterialApp(
-          title: 'AsistenciaGuard',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(useMaterial3: true),
-          home: data.isAuthenticated ? const MainScreen() : const LoginScreen(),
-        );
+    return MaterialApp(
+      title: 'AsistenciaGuard',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF3b82f6),
+          brightness: Brightness.light,
+        ),
+        textTheme: GoogleFonts.interTextTheme(),
+        scaffoldBackgroundColor: const Color(0xFFF9FAFB),
+      ),
+      // Inicia directamente con el LoginScreen
+      initialRoute: '/login',
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/home': (context) => const MainScreen(),
       },
     );
   }
@@ -50,7 +59,6 @@ class _MainScreenState extends State<MainScreen> {
     FaceRegistrationScreen(),
     FaceRecognitionScreen(),
     ChatInterfaceScreen(),
-    FaceManagementScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -74,7 +82,7 @@ class _MainScreenState extends State<MainScreen> {
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+            label: 'Inicio',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.add_a_photo),
@@ -85,12 +93,8 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Reconocer',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Asistencias',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Gestión',
+            icon: Icon(Icons.assignment),
+            label: 'Consultas',
           ),
         ],
       ),

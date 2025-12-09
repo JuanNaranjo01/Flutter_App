@@ -4,7 +4,8 @@ class Teacher {
   final String nombre;
   final String email;
   final String departamento;
-  final String password;
+  final String
+      password; // En producción esto debería estar encriptado en backend
 
   Teacher({
     required this.id,

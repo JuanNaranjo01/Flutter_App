@@ -17,6 +17,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
   String _searchTerm = '';
   String _selectedSemester = 'Todos';
   String _selectedCorte = 'Todos';
+  String _selectedMateria = 'Todas';
 
   Future<void> _exportToCSV(List<AttendanceRecord> records) async {
     try {
@@ -50,7 +51,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
 
       final directory = await getApplicationDocumentsDirectory();
       final path =
-          '${directory.path}/asistencias_${_selectedSemester}_$_selectedCorte.csv';
+          '${directory.path}/asistencias_${_selectedSemester}_${_selectedCorte}_${_selectedMateria}.csv';
       final file = File(path);
       await file.writeAsString(csv);
 
@@ -75,33 +76,22 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Registro de Asistencias',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              'Consulta y filtra registros - Modelo UCEVA',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
       body: Consumer<DataProvider>(
         builder: (context, data, child) {
+          // Obtener materias únicas
+          final materias = data.attendanceRecords
+              .map((r) => r.materia)
+              .toSet()
+              .toList()
+            ..sort();
+
+          // Obtener semestres únicos
+          final semestres = data.attendanceRecords
+              .map((r) => r.semestre)
+              .toSet()
+              .toList()
+            ..sort();
+
           // Filtrar registros
           final filteredRecords = data.attendanceRecords.where((record) {
             final matchesSearch = record.nombre
@@ -118,8 +108,13 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                 record.semestre == _selectedSemester;
             final matchesCorte =
                 _selectedCorte == 'Todos' || record.corte == _selectedCorte;
+            final matchesMateria = _selectedMateria == 'Todas' ||
+                record.materia == _selectedMateria;
 
-            return matchesSearch && matchesSemester && matchesCorte;
+            return matchesSearch &&
+                matchesSemester &&
+                matchesCorte &&
+                matchesMateria;
           }).toList();
 
           // Calcular estadísticas
@@ -127,179 +122,288 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
           final present = filteredRecords.where((r) => r.asistio).length;
           final absent = total - present;
           final totalHours =
-              filteredRecords.fold(0, (sum, r) => sum + r.horasAsistidas);
+              filteredRecords.fold<int>(0, (sum, r) => sum + r.horasAsistidas);
 
-          // Obtener semestres únicos
-          final semesters = data.attendanceRecords
-              .map((r) => r.semestre)
-              .toSet()
-              .toList()
-            ..sort();
-
-          return Column(
-            children: [
-              // Estadísticas
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _StatBox(
-                        title: 'Total',
-                        value: total.toString(),
-                        color: Colors.blue,
+          return CustomScrollView(
+            slivers: [
+              // App Bar con gradiente
+              SliverAppBar(
+                expandedHeight: 120,
+                pinned: true,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF9333EA), // purple-600
+                          Color(0xFFA855F7), // purple-500
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatBox(
-                        title: 'Asistencias',
-                        value: present.toString(),
-                        color: Colors.green,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatBox(
-                        title: 'Faltas',
-                        value: absent.toString(),
-                        color: Colors.red,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatBox(
-                        title: 'Horas',
-                        value: totalHours.toString(),
-                        color: Colors.purple,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Filtros
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.only(top: 8),
-                child: Column(
-                  children: [
-                    // Búsqueda
-                    TextField(
-                      onChanged: (value) => setState(() => _searchTerm = value),
-                      decoration: InputDecoration(
-                        hintText: 'Buscar por nombre, código o materia...',
-                        prefixIcon: const Icon(Icons.search),
-                        filled: true,
-                        fillColor: const Color(0xFFF9FAFB),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Filtros de semestre y corte
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _selectedSemester,
-                            decoration: InputDecoration(
-                              labelText: 'Semestre',
-                              prefixIcon: const Icon(Icons.calendar_today),
-                              filled: true,
-                              fillColor: const Color(0xFFF9FAFB),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
+                    child: const SafeArea(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Consulta de Asistencias',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            items: ['Todos', ...semesters]
-                                .map((s) =>
-                                    DropdownMenuItem(value: s, child: Text(s)))
-                                .toList(),
-                            onChanged: (value) =>
-                                setState(() => _selectedSemester = value!),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _selectedCorte,
-                            decoration: InputDecoration(
-                              labelText: 'Corte',
-                              prefixIcon: const Icon(Icons.filter_list),
-                              filled: true,
-                              fillColor: const Color(0xFFF9FAFB),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
+                            SizedBox(height: 4),
+                            Text(
+                              'Filtra y exporta registros por semestre, corte y materia - Modelo UCEVA',
+                              style: TextStyle(
+                                color: Color(0xFFE9D5FF),
+                                fontSize: 14,
                               ),
                             ),
-                            items: const [
-                              DropdownMenuItem(
-                                  value: 'Todos', child: Text('Todos')),
-                              DropdownMenuItem(
-                                  value: '1er Corte', child: Text('1er Corte')),
-                              DropdownMenuItem(
-                                  value: '2do Corte', child: Text('2do Corte')),
-                              DropdownMenuItem(
-                                  value: '3er Corte', child: Text('3er Corte')),
-                            ],
-                            onChanged: (value) =>
-                                setState(() => _selectedCorte = value!),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Botón exportar
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _exportToCSV(filteredRecords),
-                        icon: const Icon(Icons.download),
-                        label: const Text('Exportar CSV'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10b981),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-
-              // Tabla
-              Expanded(
-                child: Container(
-                  margin: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: filteredRecords.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No se encontraron registros',
-                            style: TextStyle(color: Colors.grey),
+                ),
+              ),
+
+              // Contenido
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // Tarjetas de estadísticas
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              'Total Registros',
+                              total.toString(),
+                              Icons.list_alt,
+                              const [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                            ),
                           ),
-                        )
-                      : SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildStatCard(
+                              'Asistencias',
+                              present.toString(),
+                              Icons.check_circle,
+                              const [Color(0xFF10B981), Color(0xFF059669)],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              'Faltas',
+                              absent.toString(),
+                              Icons.cancel,
+                              const [Color(0xFFEF4444), Color(0xFFDC2626)],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildStatCard(
+                              'Horas Totales',
+                              totalHours.toString(),
+                              Icons.schedule,
+                              const [Color(0xFFF97316), Color(0xFFEA580C)],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Panel de filtros
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            // Búsqueda
+                            TextField(
+                              decoration: InputDecoration(
+                                labelText: 'Buscar',
+                                hintText: 'Nombre, código o materia...',
+                                prefixIcon: const Icon(Icons.search),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              onChanged: (value) {
+                                setState(() {
+                                  _searchTerm = value;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Filtros en fila
+                            Row(
+                              children: [
+                                // Filtro Materia
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedMateria,
+                                    decoration: InputDecoration(
+                                      labelText: 'Materia',
+                                      prefixIcon: const Icon(Icons.book),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey[50],
+                                    ),
+                                    items: ['Todas', ...materias]
+                                        .map((materia) => DropdownMenuItem(
+                                              value: materia,
+                                              child: Text(
+                                                materia,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ))
+                                        .toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedMateria = value!;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // Filtro Semestre
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedSemester,
+                                    decoration: InputDecoration(
+                                      labelText: 'Semestre',
+                                      prefixIcon:
+                                          const Icon(Icons.calendar_today),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey[50],
+                                    ),
+                                    items: ['Todos', ...semestres]
+                                        .map((sem) => DropdownMenuItem(
+                                              value: sem,
+                                              child: Text(sem),
+                                            ))
+                                        .toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedSemester = value!;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // Filtro Corte
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedCorte,
+                                    decoration: InputDecoration(
+                                      labelText: 'Corte',
+                                      prefixIcon: const Icon(Icons.filter_list),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey[50],
+                                    ),
+                                    items: [
+                                      'Todos',
+                                      '1er Corte',
+                                      '2do Corte',
+                                      '3er Corte'
+                                    ]
+                                        .map((corte) => DropdownMenuItem(
+                                              value: corte,
+                                              child: Text(corte),
+                                            ))
+                                        .toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedCorte = value!;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Botón de exportar
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: ElevatedButton.icon(
+                                onPressed: () => _exportToCSV(filteredRecords),
+                                icon: const Icon(Icons.download),
+                                label: const Text('Exportar CSV'),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 16,
+                                  ),
+                                  backgroundColor: const Color(0xFF10B981),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Tabla de registros
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
                           child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
                             child: DataTable(
-                              headingRowColor: WidgetStateProperty.all(
-                                const Color(0xFFF9FAFB),
+                              headingRowColor: MaterialStateProperty.all(
+                                Colors.grey.shade100,
                               ),
                               columns: const [
                                 DataColumn(label: Text('Fecha')),
@@ -311,52 +415,93 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                                 DataColumn(label: Text('Semestre')),
                                 DataColumn(label: Text('Corte')),
                               ],
-                              rows: filteredRecords.map((record) {
-                                return DataRow(
-                                  cells: [
-                                    DataCell(Text(record.fecha,
-                                        style: const TextStyle(fontSize: 12))),
-                                    DataCell(Text(record.codigo,
-                                        style: const TextStyle(fontSize: 12))),
-                                    DataCell(Text(record.nombre,
-                                        style: const TextStyle(fontSize: 12))),
-                                    DataCell(Text(record.materia,
-                                        style: const TextStyle(fontSize: 12))),
-                                    DataCell(
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: record.asistio
-                                              ? Colors.green.shade50
-                                              : Colors.red.shade50,
-                                          borderRadius:
-                                              BorderRadius.circular(4),
+                              rows: filteredRecords.isEmpty
+                                  ? [
+                                      const DataRow(
+                                        cells: [
+                                          DataCell(Text('')),
+                                          DataCell(Text('')),
+                                          DataCell(Text('')),
+                                          DataCell(Text(
+                                            'No se encontraron registros',
+                                            style:
+                                                TextStyle(color: Colors.grey),
+                                          )),
+                                          DataCell(Text('')),
+                                          DataCell(Text('')),
+                                          DataCell(Text('')),
+                                          DataCell(Text('')),
+                                        ],
+                                      )
+                                    ]
+                                  : filteredRecords
+                                      .map(
+                                        (record) => DataRow(
+                                          cells: [
+                                            DataCell(Text(record.fecha)),
+                                            DataCell(Text(record.codigo)),
+                                            DataCell(Text(record.nombre)),
+                                            DataCell(Text(record.materia)),
+                                            DataCell(
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: record.asistio
+                                                      ? Colors.green.shade100
+                                                      : Colors.red.shade100,
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Text(
+                                                  record.asistio ? 'Sí' : 'No',
+                                                  style: TextStyle(
+                                                    color: record.asistio
+                                                        ? Colors.green.shade800
+                                                        : Colors.red.shade800,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(Text(record.horasAsistidas
+                                                .toString())),
+                                            DataCell(Text(record.semestre)),
+                                            DataCell(
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue.shade100,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Text(
+                                                  record.corte,
+                                                  style: TextStyle(
+                                                    color: Colors.blue.shade800,
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        child: Text(
-                                          record.asistio ? 'Sí' : 'No',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: record.asistio
-                                                ? Colors.green.shade700
-                                                : Colors.red.shade700,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(Text(
-                                        record.horasAsistidas.toString(),
-                                        style: const TextStyle(fontSize: 12))),
-                                    DataCell(Text(record.semestre,
-                                        style: const TextStyle(fontSize: 12))),
-                                    DataCell(Text(record.corte,
-                                        style: const TextStyle(fontSize: 12))),
-                                  ],
-                                );
-                              }).toList(),
+                                      )
+                                      .toList(),
                             ),
                           ),
                         ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -365,42 +510,55 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
       ),
     );
   }
-}
 
-class _StatBox extends StatelessWidget {
-  final String title;
-  final String value;
-  final Color color;
-
-  const _StatBox({
-    required this.title,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    List<Color> gradientColors,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withAlpha((0.1 * 255).round()),
-        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: gradientColors[0].withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              Icon(icon, color: Colors.white, size: 20),
+            ],
+          ),
+          const SizedBox(height: 8),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 20,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 10,
-              color: color.withAlpha((0.8 * 255).round()),
             ),
           ),
         ],
