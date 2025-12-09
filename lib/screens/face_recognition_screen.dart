@@ -127,7 +127,8 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black
+                                    .withAlpha((0.05 * 255).round()),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -259,8 +260,8 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                                               BorderRadius.circular(12),
                                           boxShadow: [
                                             BoxShadow(
-                                              color:
-                                                  Colors.green.withOpacity(0.3),
+                                              color: Colors.green.withAlpha(
+                                                  (0.3 * 255).round()),
                                               blurRadius: 12,
                                               offset: const Offset(0, 4),
                                             ),
@@ -393,7 +394,8 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black
+                                    .withAlpha((0.05 * 255).round()),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),

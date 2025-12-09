@@ -285,7 +285,7 @@ class _FaceManagementScreenState extends State<FaceManagementScreen>
             child: SingleChildScrollView(
               child: DataTable(
                 headingRowColor:
-                    MaterialStateProperty.all(const Color(0xFFF9FAFB)),
+                    WidgetStateProperty.all(const Color(0xFFF9FAFB)),
                 columns: const [
                   DataColumn(label: Text('Foto')),
                   DataColumn(label: Text('Nombre')),
@@ -415,7 +415,7 @@ class _FaceManagementScreenState extends State<FaceManagementScreen>
             child: SingleChildScrollView(
               child: DataTable(
                 headingRowColor:
-                    MaterialStateProperty.all(const Color(0xFFF9FAFB)),
+                    WidgetStateProperty.all(const Color(0xFFF9FAFB)),
                 columns: const [
                   DataColumn(label: Text('Fecha')),
                   DataColumn(label: Text('Código')),

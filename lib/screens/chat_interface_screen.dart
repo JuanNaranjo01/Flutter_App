@@ -21,7 +21,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
 
   Future<void> _exportToCSV(List<AttendanceRecord> records) async {
     try {
-      List<List<dynamic>> rows = [
+      final rows = <List<dynamic>>[
         [
           'Fecha',
           'Código',
@@ -47,11 +47,14 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
         ]);
       }
 
-      String csv = const ListToCsvConverter().convert(rows);
+      final csv = const ListToCsvConverter().convert(rows);
 
       final directory = await getApplicationDocumentsDirectory();
-      final path =
-          '${directory.path}/asistencias_${_selectedSemester}_${_selectedCorte}_${_selectedMateria}.csv';
+      final filename = 'asistencias_$_selectedSemester'
+              '_$_selectedCorte'
+              '_$_selectedMateria.csv'
+          .replaceAll(' ', '_');
+      final path = '${directory.path}/$filename';
       final file = File(path);
       await file.writeAsString(csv);
 
@@ -233,7 +236,8 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color:
+                                  Colors.black.withAlpha((0.05 * 255).round()),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -267,7 +271,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                                 // Filtro Materia
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
-                                    value: _selectedMateria,
+                                    initialValue: _selectedMateria,
                                     decoration: InputDecoration(
                                       labelText: 'Materia',
                                       prefixIcon: const Icon(Icons.book),
@@ -298,7 +302,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                                 // Filtro Semestre
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
-                                    value: _selectedSemester,
+                                    initialValue: _selectedSemester,
                                     decoration: InputDecoration(
                                       labelText: 'Semestre',
                                       prefixIcon:
@@ -327,7 +331,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                                 // Filtro Corte
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
-                                    value: _selectedCorte,
+                                    initialValue: _selectedCorte,
                                     decoration: InputDecoration(
                                       labelText: 'Corte',
                                       prefixIcon: const Icon(Icons.filter_list),
@@ -391,7 +395,8 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color:
+                                  Colors.black.withAlpha((0.05 * 255).round()),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -402,7 +407,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: DataTable(
-                              headingRowColor: MaterialStateProperty.all(
+                              headingRowColor: WidgetStateProperty.all(
                                 Colors.grey.shade100,
                               ),
                               columns: const [
@@ -528,7 +533,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: gradientColors[0].withOpacity(0.3),
+            color: gradientColors[0].withAlpha((0.3 * 255).round()),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -544,7 +549,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                 child: Text(
                   title,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withAlpha((0.9 * 255).round()),
                     fontSize: 12,
                   ),
                 ),

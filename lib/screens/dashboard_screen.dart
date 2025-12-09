@@ -82,12 +82,12 @@ class DashboardScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Row(
+                            const Row(
                               children: [
-                                const Icon(Icons.emoji_events,
+                                Icon(Icons.emoji_events,
                                     color: Colors.white, size: 32),
-                                const SizedBox(width: 12),
-                                const Text(
+                                SizedBox(width: 12),
+                                Text(
                                   'Bienvenido,',
                                   style: TextStyle(
                                     color: Colors.white70,
@@ -213,7 +213,7 @@ class DashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: gradientColors[0].withOpacity(0.3),
+            color: gradientColors[0].withAlpha((0.3 * 255).round()),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -229,7 +229,7 @@ class DashboardScreen extends StatelessWidget {
                 child: Text(
                   title,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withAlpha((0.9 * 255).round()),
                     fontSize: 13,
                   ),
                 ),
@@ -237,7 +237,7 @@ class DashboardScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withAlpha((0.2 * 255).round()),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: Colors.white, size: 24),
@@ -290,7 +290,7 @@ class DashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha((0.05 * 255).round()),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -353,7 +353,8 @@ class DashboardScreen extends StatelessWidget {
                     dotData: const FlDotData(show: true),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: const Color(0xFF3B82F6).withOpacity(0.1),
+                      color: const Color(0xFF3B82F6)
+                          .withAlpha((0.1 * 255).round()),
                     ),
                   ),
                   LineChartBarData(
@@ -401,7 +402,7 @@ class DashboardScreen extends StatelessWidget {
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
-                      color: Colors.grey.withOpacity(0.2),
+                      color: Colors.grey.withAlpha((0.2 * 255).round()),
                       strokeWidth: 1,
                     );
                   },
@@ -430,7 +431,7 @@ class DashboardScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withAlpha((0.05 * 255).round()),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -557,7 +558,7 @@ class DashboardScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withAlpha((0.05 * 255).round()),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
