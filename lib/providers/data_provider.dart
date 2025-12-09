@@ -67,7 +67,7 @@ class DataProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  List<RegisteredFace> _registeredFaces = [
+  final List<RegisteredFace> _registeredFaces = [
     RegisteredFace(
       id: '1',
       name: 'María González López',

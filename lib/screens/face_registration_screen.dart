@@ -52,7 +52,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
     }
   }
 
-  Future<void> _pickImage() async {
+  /*Future<void> _pickImage() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
 
@@ -68,7 +68,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         );
       }
     }
-  }
+  }*/
 
   void _registerFace() {
     if (_formKey.currentState!.validate() && _imageFile != null) {
@@ -181,7 +181,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withAlpha(13),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -325,7 +325,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withAlpha(13),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
