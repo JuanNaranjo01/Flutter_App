@@ -52,34 +52,16 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
     }
   }
 
-  /*Future<void> _pickImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-
-      if (image != null) {
-        setState(() {
-          _imageFile = File(image.path);
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al seleccionar imagen: $e')),
-        );
-      }
-    }
-  }*/
-
   void _registerFace() {
     if (_formKey.currentState!.validate() && _imageFile != null) {
       final newFace = RegisteredFace(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text,
-        email: '', // Ya no se solicita
+        email: '',
         codigo: _codigoController.text,
         materia: _materiaController.text,
         carrera: _carreraController.text,
-        semestre: '', // Ya no se solicita
+        semestre: '',
         registrationDate: DateTime.now().toString().split(' ')[0],
         confidence: 90 + (10 * (DateTime.now().millisecond / 1000)),
         imageUrl: _imageFile!.path,
@@ -96,7 +78,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         ),
       );
 
-      // Limpiar formulario
       _formKey.currentState!.reset();
       setState(() {
         _imageFile = null;
@@ -118,7 +99,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       backgroundColor: const Color(0xFFF9FAFB),
       body: CustomScrollView(
         slivers: [
-          // App Bar con gradiente
           SliverAppBar(
             expandedHeight: 120,
             pinned: true,
@@ -129,8 +109,8 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color(0xFF2563EB), // blue-600
-                      Color(0xFF3B82F6), // blue-500
+                      Color(0xFF2563EB),
+                      Color(0xFF3B82F6),
                     ],
                   ),
                 ),
@@ -164,74 +144,63 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
               ),
             ),
           ),
-
-          // Contenido
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Sección de cámara
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(13),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 700;
+
+                  Widget cameraCard = Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
+                                padding: const EdgeInsets.all(10),
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
                                     colors: [
                                       Color(0xFF10B981),
-                                      Color(0xFF059669)
+                                      Color(0xFF059669),
                                     ],
                                   ),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(10)),
                                 ),
                                 child: const Icon(
                                   Icons.camera_alt,
                                   color: Colors.white,
-                                  size: 24,
+                                  size: 20,
                                 ),
                               ),
                               const SizedBox(width: 12),
                               const Text(
                                 'Captura de Rostro',
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 20),
-
-                          // Área de visualización de imagen
+                          const SizedBox(height: 16),
                           Container(
-                            height: 300,
+                            height: 240,
+                            width: double.infinity,
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.grey.shade100,
-                                  Colors.grey.shade200,
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: Colors.grey.shade200, width: 2),
                             ),
                             child: _imageFile == null
                                 ? const Center(
@@ -240,8 +209,8 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                           MainAxisAlignment.center,
                                       children: [
                                         Icon(
-                                          Icons.camera_alt,
-                                          size: 64,
+                                          Icons.camera_alt_outlined,
+                                          size: 56,
                                           color: Colors.grey,
                                         ),
                                         SizedBox(height: 12),
@@ -249,14 +218,14 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                           'Cámara inactiva',
                                           style: TextStyle(
                                             color: Colors.grey,
-                                            fontSize: 16,
+                                            fontSize: 14,
                                           ),
                                         ),
                                       ],
                                     ),
                                   )
                                 : ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(12),
                                     child: Image.file(
                                       _imageFile!,
                                       fit: BoxFit.cover,
@@ -264,24 +233,25 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                   ),
                           ),
                           const SizedBox(height: 16),
-
-                          // Botones de cámara
                           Row(
                             children: [
                               Expanded(
                                 child: ElevatedButton.icon(
                                   onPressed: _takePicture,
                                   icon: const Icon(Icons.camera_alt),
-                                  label: Text(_imageFile == null
-                                      ? 'Iniciar Cámara'
-                                      : 'Capturar'),
+                                  label: Text(
+                                    _imageFile == null
+                                        ? 'Iniciar Cámara'
+                                        : 'Capturar',
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
                                   style: ElevatedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 16),
+                                        vertical: 14),
                                     backgroundColor: const Color(0xFF10B981),
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
                                 ),
@@ -296,16 +266,16 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                   },
                                   style: ElevatedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 16,
+                                      horizontal: 14,
+                                      vertical: 14,
                                     ),
                                     backgroundColor: Colors.grey.shade600,
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
-                                  child: const Text('Retomar'),
+                                  child: const Icon(Icons.refresh, size: 18),
                                 ),
                               ],
                             ],
@@ -313,72 +283,67 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
+                  );
 
-                  // Sección de formulario
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(13),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
+                  Widget infoCard = Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
                       child: Form(
                         key: _formKey,
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
                                       colors: [
                                         Color(0xFF8B5CF6),
-                                        Color(0xFF7C3AED)
+                                        Color(0xFF7C3AED),
                                       ],
                                     ),
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius:
+                                        BorderRadius.all(Radius.circular(10)),
                                   ),
                                   child: const Icon(
                                     Icons.person_add,
                                     color: Colors.white,
-                                    size: 24,
+                                    size: 20,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 const Text(
                                   'Información del Estudiante',
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
-
-                            // Nombre Completo
+                            const SizedBox(height: 16),
                             TextFormField(
                               controller: _nameController,
                               decoration: InputDecoration(
                                 labelText: 'Nombre Completo',
                                 hintText: 'Ej: María González López',
-                                prefixIcon: const Icon(Icons.person),
+                                prefixIcon: const Icon(Icons.person, size: 20),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                                 filled: true,
                                 fillColor: Colors.grey[50],
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -387,20 +352,22 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 16),
-
-                            // Código
+                            const SizedBox(height: 12),
                             TextFormField(
                               controller: _codigoController,
                               decoration: InputDecoration(
                                 labelText: 'Código Estudiantil',
                                 hintText: 'Ej: EST001234',
-                                prefixIcon: const Icon(Icons.badge),
+                                prefixIcon: const Icon(Icons.badge, size: 20),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                                 filled: true,
                                 fillColor: Colors.grey[50],
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -409,20 +376,22 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 16),
-
-                            // Carrera
+                            const SizedBox(height: 12),
                             TextFormField(
                               controller: _carreraController,
                               decoration: InputDecoration(
                                 labelText: 'Carrera',
                                 hintText: 'Ej: Ingeniería en Sistemas',
-                                prefixIcon: const Icon(Icons.school),
+                                prefixIcon: const Icon(Icons.school, size: 20),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                                 filled: true,
                                 fillColor: Colors.grey[50],
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -431,21 +400,23 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 16),
-
-                            // Materia
+                            const SizedBox(height: 12),
                             TextFormField(
                               controller: _materiaController,
                               decoration: InputDecoration(
                                 labelText: 'Materia',
                                 hintText:
                                     'Ej: Programación Orientada a Objetos',
-                                prefixIcon: const Icon(Icons.book),
+                                prefixIcon: const Icon(Icons.book, size: 20),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                                 filled: true,
                                 fillColor: Colors.grey[50],
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -454,28 +425,24 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 24),
-
-                            // Botón de registro
+                            const SizedBox(height: 16),
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
                                 onPressed: _registerFace,
                                 icon: const Icon(Icons.person_add),
-                                label: const Text(
-                                  'Registrar Estudiante',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
+                                label: const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  child: Text(
+                                    'Registrar Estudiante',
+                                    style: TextStyle(fontSize: 14),
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 18),
                                   backgroundColor: const Color(0xFF3B82F6),
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
                               ),
@@ -484,8 +451,30 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  );
+
+                  if (isWide) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: cameraCard),
+                        const SizedBox(width: 16),
+                        Expanded(child: infoCard),
+                      ],
+                    );
+                  } else {
+                    return SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          cameraCard,
+                          const SizedBox(height: 16),
+                          infoCard,
+                        ],
+                      ),
+                    );
+                  }
+                },
               ),
             ),
           ),

@@ -29,6 +29,11 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       if (faces.isNotEmpty && mounted) {
         setState(() {
           _detectedFace = faces[DateTime.now().second % faces.length];
+          _isScanning = false;
+        });
+      } else if (mounted) {
+        setState(() {
+          _isScanning = false;
         });
       }
     });
@@ -110,470 +115,206 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                 ),
               ),
 
-              // Contenido
+              // Contenido responsive
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Sección de cámara
-                      Expanded(
-                        flex: 2,
-                        child: Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black
-                                    .withAlpha((0.05 * 255).round()),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                  child: LayoutBuilder(builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 700;
+                    final cameraHeight = isWide
+                        ? 420.0
+                        : (MediaQuery.of(context).size.height * 0.38)
+                            .clamp(300.0, 420.0);
+
+                    Widget cameraCard = Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha((0.05 * 255).round()),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF10B981),
+                                      Color(0xFF059669)
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.videocam,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Transmisión en Vivo',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ],
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF10B981),
-                                          Color(0xFF059669)
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.videocam,
-                                      color: Colors.white,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const Text(
-                                    'Transmisión en Vivo',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                          const SizedBox(height: 12),
+                          // Área de cámara simulada
+                          Container(
+                            height: cameraHeight,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF1F2937),
+                                  Color(0xFF111827),
                                 ],
                               ),
-                              const SizedBox(height: 20),
-
-                              // Área de cámara simulada
-                              Stack(
-                                children: [
-                                  Container(
-                                    height: 400,
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF1F2937),
-                                          Color(0xFF111827),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Center(
-                                      child: _isScanning
-                                          ? Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                SizedBox(
-                                                  width: 64,
-                                                  height: 64,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                    strokeWidth: 4,
-                                                    valueColor:
-                                                        AlwaysStoppedAnimation<
-                                                            Color>(
-                                                      Colors.green.shade400,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 20),
-                                                const Text(
-                                                  'Reconociendo rostro...',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 18,
-                                                  ),
-                                                ),
-                                              ],
-                                            )
-                                          : const Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  Icons.videocam,
-                                                  size: 80,
-                                                  color: Colors.grey,
-                                                ),
-                                                SizedBox(height: 16),
-                                                Text(
-                                                  'Cámara inactiva',
-                                                  style: TextStyle(
-                                                    color: Colors.grey,
-                                                    fontSize: 18,
-                                                  ),
-                                                ),
-                                                SizedBox(height: 8),
-                                                Text(
-                                                  'Presiona el botón para iniciar',
-                                                  style: TextStyle(
-                                                    color: Colors.grey,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                              ],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: _isScanning
+                                  ? Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        SizedBox(
+                                          width: 56,
+                                          height: 56,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 4,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              Colors.green.shade400,
                                             ),
-                                    ),
-                                  ),
-
-                                  // Banner de rostro reconocido
-                                  if (_detectedFace != null)
-                                    Positioned(
-                                      top: 16,
-                                      left: 16,
-                                      right: 16,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            colors: [
-                                              Color(0xFF10B981),
-                                              Color(0xFF059669),
-                                            ],
                                           ),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.green.withAlpha(
-                                                  (0.3 * 255).round()),
-                                              blurRadius: 12,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ],
                                         ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.check_circle,
-                                              color: Colors.white,
-                                              size: 28,
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Text(
-                                                'Rostro reconocido: ${_detectedFace!.name}',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Botones de control
-                              Row(
-                                children: [
-                                  if (!_isScanning && _detectedFace == null)
-                                    Expanded(
-                                      child: ElevatedButton.icon(
-                                        onPressed: data.registeredFaces.isEmpty
-                                            ? null
-                                            : _startScanning,
-                                        icon: const Icon(Icons.videocam),
-                                        label: const Text(
-                                          'Iniciar Reconocimiento',
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'Reconociendo rostro...',
                                           style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 18),
-                                          backgroundColor:
-                                              const Color(0xFF10B981),
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  if (_isScanning || _detectedFace != null) ...[
-                                    Expanded(
-                                      child: ElevatedButton.icon(
-                                        onPressed: _isScanning
-                                            ? null
-                                            : _recognizeAnother,
-                                        icon: const Icon(Icons.check_circle),
-                                        label: Text(
-                                          _isScanning
-                                              ? 'Reconociendo...'
-                                              : 'Reconocer Rostro',
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 18),
-                                          backgroundColor:
-                                              const Color(0xFF3B82F6),
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    ElevatedButton(
-                                      onPressed: _stopScanning,
-                                      style: ElevatedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 24,
-                                          vertical: 18,
-                                        ),
-                                        backgroundColor:
-                                            const Color(0xFFEF4444),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Detener',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-
-                      // Panel de información
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black
-                                    .withAlpha((0.05 * 255).round()),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF8B5CF6),
-                                          Color(0xFF7C3AED)
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.person,
-                                      color: Colors.white,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const Text(
-                                    'Información del Estudiante',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              if (_detectedFace != null) ...[
-                                Center(
-                                  child: Stack(
-                                    children: [
-                                      Container(
-                                        width: 140,
-                                        height: 140,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: const Color(0xFF10B981),
-                                            width: 4,
-                                          ),
-                                          image: DecorationImage(
-                                            image: NetworkImage(
-                                                _detectedFace!.imageUrl),
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      ),
-                                      Positioned(
-                                        bottom: 0,
-                                        right: 0,
-                                        child: Container(
-                                          width: 40,
-                                          height: 40,
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF10B981),
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: Colors.white,
-                                              width: 4,
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.check,
                                             color: Colors.white,
-                                            size: 20,
+                                            fontSize: 16,
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFFD1FAE5),
-                                          Color(0xFFA7F3D0),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      'Confianza: ${_detectedFace!.confidence.toStringAsFixed(1)}%',
-                                      style: TextStyle(
-                                        color: Colors.green.shade800,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade50,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _buildInfoRow(
-                                          'Nombre', _detectedFace!.name),
-                                      const Divider(height: 24),
-                                      _buildInfoRow(
-                                          'Código', _detectedFace!.codigo),
-                                      const Divider(height: 24),
-                                      _buildInfoRow(
-                                          'Carrera', _detectedFace!.carrera),
-                                      const Divider(height: 24),
-                                      _buildInfoRow(
-                                          'Materia', _detectedFace!.materia),
-                                    ],
-                                  ),
-                                ),
-                              ] else ...[
-                                Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const SizedBox(height: 60),
-                                      Icon(
-                                        Icons.person_outline,
-                                        size: 100,
-                                        color: Colors.grey.shade300,
-                                      ),
-                                      const SizedBox(height: 20),
-                                      Text(
-                                        'No se ha reconocido\nningún rostro',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Colors.grey.shade600,
-                                          fontSize: 16,
+                                      ],
+                                    )
+                                  : const Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.videocam,
+                                          size: 64,
+                                          color: Colors.grey,
                                         ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        data.registeredFaces.isEmpty
-                                            ? 'No hay rostros registrados\nen el sistema'
-                                            : 'Inicia la cámara\npara comenzar',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Colors.grey.shade500,
-                                          fontSize: 14,
+                                        SizedBox(height: 12),
+                                        Text(
+                                          'Cámara inactiva',
+                                          style: TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 16,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Presiona el botón para iniciar',
+                                          style: TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Botones de control
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildPrimaryButton(data),
+                              ),
+                              const SizedBox(width: 12),
+                              ElevatedButton(
+                                onPressed: _stopScanning,
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  backgroundColor: const Color(0xFFEF4444),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
-                              ],
+                                child: const Text('Detener'),
+                              ),
                             ],
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+
+                    Widget infoCard = Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha((0.05 * 255).round()),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                            minHeight: cameraHeight * 0.6,
+                            maxHeight: isWide ? cameraHeight : double.infinity),
+                        child: _detectedFace != null
+                            ? _buildDetectedInfo()
+                            : _buildNoDetectedInfo(data),
+                      ),
+                    );
+
+                    if (isWide) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 2, child: cameraCard),
+                          const SizedBox(width: 16),
+                          Expanded(flex: 1, child: infoCard),
+                        ],
+                      );
+                    } else {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          cameraCard,
+                          const SizedBox(height: 12),
+                          infoCard,
+                        ],
+                      );
+                    }
+                  }),
                 ),
               ),
 
-              // Estado del sistema
+              // Estado del sistema (mantener como antes)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -592,37 +333,41 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                         width: 2,
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                    child: Consumer<DataProvider>(
+                      builder: (context, data, _) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Estado del Sistema: ',
-                              style: TextStyle(
-                                color: Colors.blue.shade900,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  'Estado del Sistema: ',
+                                  style: TextStyle(
+                                    color: Colors.blue.shade900,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  '${data.registeredFaces.length} rostros registrados',
+                                  style: TextStyle(
+                                    color: Colors.blue.shade900,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
+                            const SizedBox(height: 8),
                             Text(
-                              '${data.registeredFaces.length} rostros registrados',
+                              'El sistema está listo para reconocer estudiantes en tiempo real',
                               style: TextStyle(
-                                color: Colors.blue.shade900,
-                                fontSize: 14,
+                                color: Colors.blue.shade700,
+                                fontSize: 12,
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'El sistema está listo para reconocer estudiantes en tiempo real',
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -630,6 +375,176 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildPrimaryButton(DataProvider data) {
+    if (!_isScanning && _detectedFace == null) {
+      return ElevatedButton.icon(
+        onPressed: data.registeredFaces.isEmpty ? null : () => _startScanning(),
+        icon: const Icon(Icons.videocam),
+        label: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            'Iniciar Reconocimiento',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF10B981),
+          foregroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+
+    return ElevatedButton.icon(
+      onPressed: _isScanning ? null : _recognizeAnother,
+      icon: const Icon(Icons.check_circle),
+      label: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          _isScanning ? 'Reconociendo...' : 'Reconocer Rostro',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF3B82F6),
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Widget _buildDetectedInfo() {
+    final face = _detectedFace!;
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Center(
+            child: Stack(
+              children: [
+                Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF10B981),
+                      width: 4,
+                    ),
+                    image: DecorationImage(
+                      image: NetworkImage(face.imageUrl),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 4,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFFD1FAE5),
+                    Color(0xFFA7F3D0),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Confianza: ${face.confidence.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  color: Colors.green.shade800,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildInfoRow('Nombre', face.name),
+                const Divider(height: 24),
+                _buildInfoRow('Código', face.codigo),
+                const Divider(height: 24),
+                _buildInfoRow('Carrera', face.carrera),
+                const Divider(height: 24),
+                _buildInfoRow('Materia', face.materia),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoDetectedInfo(DataProvider data) {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        children: [
+          const SizedBox(height: 24),
+          Icon(
+            Icons.person_outline,
+            size: 80,
+            color: Colors.grey.shade300,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No se ha reconocido\nningún rostro',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            data.registeredFaces.isEmpty
+                ? 'No hay rostros registrados\nen el sistema'
+                : 'Inicia la cámara\npara comenzar',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -645,7 +560,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
             fontSize: 12,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           value,
           style: const TextStyle(
