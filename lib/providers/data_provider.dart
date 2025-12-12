@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/registered_face.dart';
 import '../models/attendance_record.dart';
 import '../models/teacher.dart';
+import '../models/student.dart';
 
 class DataProvider with ChangeNotifier {
   // Lista de docentes simulados (en producción esto vendría de un backend)
@@ -281,6 +282,10 @@ class DataProvider with ChangeNotifier {
   List<RegisteredFace> get registeredFaces => _registeredFaces;
   List<AttendanceRecord> get attendanceRecords => _attendanceRecords;
 
+  // Estudiante actualmente seleccionado para registro de embeddings
+  Student? _currentStudent;
+  Student? get currentStudent => _currentStudent;
+
   void addRegisteredFace(RegisteredFace face) {
     _registeredFaces.add(face);
     notifyListeners();
@@ -293,6 +298,17 @@ class DataProvider with ChangeNotifier {
 
   void addAttendanceRecord(AttendanceRecord record) {
     _attendanceRecords.add(record);
+    notifyListeners();
+  }
+
+  // Métodos para gestión de estudiante en proceso de registro
+  void setCurrentStudent(Student? student) {
+    _currentStudent = student;
+    notifyListeners();
+  }
+
+  void clearCurrentStudent() {
+    _currentStudent = null;
     notifyListeners();
   }
 }

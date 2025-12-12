@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../providers/data_provider.dart';
-import '../models/registered_face.dart';
+import '../services/api_services.dart';
+import '../services/image_compression_service.dart';
+import '../models/student.dart';
 
 class FaceRegistrationScreen extends StatefulWidget {
   const FaceRegistrationScreen({super.key});
@@ -13,88 +15,371 @@ class FaceRegistrationScreen extends StatefulWidget {
 }
 
 class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
   final _codigoController = TextEditingController();
-  final _materiaController = TextEditingController();
-  final _carreraController = TextEditingController();
-
-  File? _imageFile;
   final ImagePicker _picker = ImagePicker();
+
+  // Estados del flujo
+  Student? _foundStudent;
+  Map<int, File?> _capturedPhotos = {1: null, 2: null, 3: null, 4: null};
+  bool _isLoading = false;
+  bool _isProcessing = false;
+  String? _errorMessage;
+
+  // Etiquetas para las 4 fotos requeridas
+  final List<String> _photoLabels = [
+    'De Frente',
+    'Lado Izquierdo',
+    'Lado Derecho',
+    'Sonriendo'
+  ];
 
   @override
   void dispose() {
-    _nameController.dispose();
     _codigoController.dispose();
-    _materiaController.dispose();
-    _carreraController.dispose();
     super.dispose();
   }
 
-  Future<void> _takePicture() async {
+  // PASO 1: Buscar estudiante
+  Future<void> _searchStudent() async {
+    if (_codigoController.text.isEmpty) {
+      setState(() {
+        _errorMessage = 'Por favor ingresa el código del estudiante';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await ApiService.searchStudent(_codigoController.text);
+
+      if (!mounted) return;
+
+      if (response.found &&
+          response.students != null &&
+          response.students!.isNotEmpty) {
+        setState(() {
+          _foundStudent = response.students!.first;
+          _isLoading = false;
+        });
+        _showConfirmationDialog();
+      } else {
+        setState(() {
+          _errorMessage =
+              response.message ?? 'Estudiante no encontrado en BIENESTAR';
+          _isLoading = false;
+        });
+      }
+    } on TimeoutException catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    } on SocketException catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
+  }
+
+  // PASO 2: Mostrar diálogo de confirmación
+  void _showConfirmationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar Datos del Estudiante'),
+        content: _foundStudent != null
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Código: ${_foundStudent!.codigo}'),
+                  const SizedBox(height: 8),
+                  Text('Nombre: ${_foundStudent!.nombreCompleto}'),
+                  const SizedBox(height: 8),
+                  Text('Programa: ${_foundStudent!.programa}'),
+                  const SizedBox(height: 8),
+                  Text('Semestre: ${_foundStudent!.semestre}'),
+                  if (_foundStudent!.tieneEmbeddings) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '⚠️ Ya tiene ${_foundStudent!.numEmbeddings} fotos registradas',
+                        style: TextStyle(color: Colors.orange.shade900),
+                      ),
+                    ),
+                  ],
+                ],
+              )
+            : const SizedBox.shrink(),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resetForm();
+            },
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Provider.of<DataProvider>(context, listen: false)
+                  .setCurrentStudent(_foundStudent);
+              _resetPhotos();
+            },
+            child: const Text('Continuar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // PASO 3: Capturar foto
+  Future<void> _takePicture(int photoNumber) async {
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.front,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
       );
 
       if (photo != null) {
+        final file = File(photo.path);
+
+        // Validar tamaño
+        final isValid = await ImageCompressionService.validateImageSize(file);
+        if (!isValid) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('❌ La imagen no debe exceder 2MB'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
         setState(() {
-          _imageFile = File(photo.path);
+          _capturedPhotos[photoNumber] = file;
         });
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al capturar imagen: $e')),
+          SnackBar(
+            content: Text('Error al capturar foto: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
-  void _registerFace() {
-    if (_formKey.currentState!.validate() && _imageFile != null) {
-      final newFace = RegisteredFace(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: _nameController.text,
-        email: '',
-        codigo: _codigoController.text,
-        materia: _materiaController.text,
-        carrera: _carreraController.text,
-        semestre: '',
-        registrationDate: DateTime.now().toString().split(' ')[0],
-        confidence: 90 + (10 * (DateTime.now().millisecond / 1000)),
-        imageUrl: _imageFile!.path,
-      );
+  // PASO 4: Registrar embeddings
+  Future<void> _registerEmbeddings() async {
+    final student = _foundStudent;
+    if (student == null) return;
 
-      Provider.of<DataProvider>(context, listen: false)
-          .addRegisteredFace(newFace);
-
+    // Validar que hay entre 3 y 5 fotos
+    final photosCount = _capturedPhotos.values.where((p) => p != null).length;
+    if (photosCount < 3) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ Estudiante registrado exitosamente'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+          content: Text('❌ Debes capturar al menos 3 fotos'),
+          backgroundColor: Colors.red,
         ),
       );
-
-      _formKey.currentState!.reset();
-      setState(() {
-        _imageFile = null;
-      });
-      _nameController.clear();
-      _codigoController.clear();
-      _materiaController.clear();
-      _carreraController.clear();
-    } else if (_imageFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, capture una foto')),
-      );
+      return;
     }
+
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      // Convertir fotos a base64
+      List<String> base64Images = [];
+      for (final photo in _capturedPhotos.values) {
+        if (photo != null) {
+          final base64 =
+              await ImageCompressionService.compressAndConvertToBase64(photo);
+          base64Images.add(base64);
+        }
+      }
+
+      // Registrar embeddings
+      final response = await ApiService.registerStudentEmbeddings(
+        codigoEstudiante: student.codigo,
+        images: base64Images,
+        forceUpdate: student.tieneEmbeddings,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isProcessing = false;
+      });
+
+      // Mostrar resultado
+      _showResultDialog(response);
+    } on ConflictException catch (e) {
+      setState(() {
+        _isProcessing = false;
+      });
+      _showConflictDialog(e.message, e.existingEmbeddings);
+    } catch (e) {
+      setState(() {
+        _isProcessing = false;
+      });
+      _showErrorDialog(e.toString());
+    }
+  }
+
+  // PASO 5: Mostrar resultado
+  void _showResultDialog(StudentEmbeddingResponse response) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: response.success
+            ? const Text('✅ ¡Registro Exitoso!')
+            : const Text('❌ Error en el Registro'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(response.message),
+            if (response.student != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                  'Fotos guardadas: ${response.student!.embeddingsSaved}/${response.student!.totalImages}'),
+              if (response.student!.embeddingsFailed > 0)
+                Text(
+                  'Fotos fallidas: ${response.student!.embeddingsFailed}',
+                  style: const TextStyle(color: Colors.orange),
+                ),
+            ],
+            if (response.failedImages != null &&
+                response.failedImages!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Fotos que fallaron:'),
+              ...response.failedImages!
+                  .map((f) => Text('  • Foto ${f.imageNumber}: ${f.reason}')),
+            ],
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resetForm();
+            },
+            child: const Text('Finalizar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showConflictDialog(String message, int existingCount) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ Embeddings Existentes'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message),
+            const SizedBox(height: 8),
+            Text('Embeddings registrados: $existingCount'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Intentar con force_update = true (será manejado por _registerEmbeddings)
+            },
+            child: const Text('Actualizar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('❌ Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resetForm();
+            },
+            child: const Text('Volver'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _resetForm() {
+    setState(() {
+      _foundStudent = null;
+      _capturedPhotos = {1: null, 2: null, 3: null, 4: null};
+      _codigoController.clear();
+      _errorMessage = null;
+    });
+    Provider.of<DataProvider>(context, listen: false).clearCurrentStudent();
+  }
+
+  void _resetPhotos() {
+    setState(() {
+      _capturedPhotos = {1: null, 2: null, 3: null, 4: null};
+      _errorMessage = null;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentStudent = Provider.of<DataProvider>(context).currentStudent;
+
+    // Si hay un estudiante seleccionado, mostrar pantalla de captura
+    if (currentStudent != null) {
+      return _buildCaptureScreen(currentStudent);
+    }
+
+    // Si no, mostrar pantalla de búsqueda
+    return _buildSearchScreen();
+  }
+
+  Widget _buildSearchScreen() {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: CustomScrollView(
@@ -108,10 +393,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF2563EB),
-                      Color(0xFF3B82F6),
-                    ],
+                    colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
                   ),
                 ),
                 child: const SafeArea(
@@ -122,7 +404,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Text(
-                          'Registro de Rostros',
+                          'Registro de Embeddings',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 28,
@@ -131,7 +413,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'Registra un nuevo estudiante en el sistema',
+                          'Registra tus datos biométricos',
                           style: TextStyle(
                             color: Color(0xFFBFDBFE),
                             fontSize: 14,
@@ -147,334 +429,324 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth >= 700;
-
-                  Widget cameraCard = Card(
+              child: Column(
+                children: [
+                  Card(
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                        borderRadius: BorderRadius.circular(16)),
                     elevation: 4,
                     child: Padding(
                       padding: const EdgeInsets.all(20),
                       child: Column(
-                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Color(0xFF10B981),
-                                      Color(0xFF059669),
-                                    ],
-                                  ),
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(10)),
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Captura de Rostro',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            height: 240,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: Colors.grey.shade200, width: 2),
+                          const Text(
+                            'Buscar Estudiante',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
-                            child: _imageFile == null
-                                ? const Center(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.camera_alt_outlined,
-                                          size: 56,
-                                          color: Colors.grey,
-                                        ),
-                                        SizedBox(height: 12),
-                                        Text(
-                                          'Cámara inactiva',
-                                          style: TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                : ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.file(
-                                      _imageFile!,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
                           ),
                           const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: _takePicture,
-                                  icon: const Icon(Icons.camera_alt),
-                                  label: Text(
-                                    _imageFile == null
-                                        ? 'Iniciar Cámara'
-                                        : 'Capturar',
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 14),
-                                    backgroundColor: const Color(0xFF10B981),
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                ),
+                          TextField(
+                            controller: _codigoController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              hintText: 'Ingresa tu código de estudiante',
+                              prefixIcon: const Icon(Icons.card_giftcard),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              if (_imageFile != null) ...[
-                                const SizedBox(width: 8),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _imageFile = null;
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 14,
-                                    ),
-                                    backgroundColor: Colors.grey.shade600,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
+                            ),
+                            onSubmitted: (_) => _searchStudent(),
+                          ),
+                          const SizedBox(height: 16),
+                          if (_errorMessage != null)
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error_outline,
+                                      color: Colors.red.shade900),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _errorMessage!,
+                                      style:
+                                          TextStyle(color: Colors.red.shade900),
                                     ),
                                   ),
-                                  child: const Icon(Icons.refresh, size: 18),
-                                ),
-                              ],
-                            ],
+                                ],
+                              ),
+                            ),
+                          if (_errorMessage == null) const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _isLoading ? null : _searchStudent,
+                              icon: _isLoading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.search),
+                              label: Text(_isLoading
+                                  ? 'Buscando...'
+                                  : 'Buscar Estudiante'),
+                              style: ElevatedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  );
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                  Widget infoCard = Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+  Widget _buildCaptureScreen(Student student) {
+    final photosCount = _capturedPhotos.values.where((p) => p != null).length;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 120,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
+                  ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        const Text(
+                          'Captura de Fotos',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Captura: $photosCount/4 fotos',
+                          style: const TextStyle(
+                            color: Color(0xFFBFDBFE),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
-                    elevation: 4,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Card(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    elevation: 2,
                     child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Form(
-                        key: _formKey,
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Estudiante: ${student.nombreCompleto}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Código: ${student.codigo}',
+                            style: const TextStyle(
+                                fontSize: 14, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                    ),
+                    itemCount: 4,
+                    itemBuilder: (context, index) {
+                      final photoNumber = index + 1;
+                      final photo = _capturedPhotos[photoNumber];
+
+                      return Card(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        elevation: 2,
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Color(0xFF8B5CF6),
-                                        Color(0xFF7C3AED),
-                                      ],
-                                    ),
-                                    borderRadius:
-                                        BorderRadius.all(Radius.circular(10)),
-                                  ),
-                                  child: const Icon(
-                                    Icons.person_add,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Información del Estudiante',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _nameController,
-                              decoration: InputDecoration(
-                                labelText: 'Nombre Completo',
-                                hintText: 'Ej: María González López',
-                                prefixIcon: const Icon(Icons.person, size: 20),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey[50],
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
-                                ),
+                                child: photo == null
+                                    ? Center(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.camera_alt,
+                                                size: 40, color: Colors.grey),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              _photoLabels[index],
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    : Stack(
+                                        children: [
+                                          Image.file(
+                                            photo,
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                          ),
+                                          Positioned(
+                                            top: 4,
+                                            right: 4,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green,
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                              ),
+                                              child: const Icon(
+                                                Icons.check,
+                                                color: Colors.white,
+                                                size: 16,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Por favor ingrese el nombre';
-                                }
-                                return null;
-                              },
                             ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _codigoController,
-                              decoration: InputDecoration(
-                                labelText: 'Código Estudiantil',
-                                hintText: 'Ej: EST001234',
-                                prefixIcon: const Icon(Icons.badge, size: 20),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey[50],
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Por favor ingrese el código';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _carreraController,
-                              decoration: InputDecoration(
-                                labelText: 'Carrera',
-                                hintText: 'Ej: Ingeniería en Sistemas',
-                                prefixIcon: const Icon(Icons.school, size: 20),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey[50],
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Por favor ingrese la carrera';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _materiaController,
-                              decoration: InputDecoration(
-                                labelText: 'Materia',
-                                hintText:
-                                    'Ej: Programación Orientada a Objetos',
-                                prefixIcon: const Icon(Icons.book, size: 20),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey[50],
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Por favor ingrese la materia';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: _registerFace,
-                                icon: const Icon(Icons.person_add),
-                                label: const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                  child: Text(
-                                    'Registrar Estudiante',
-                                    style: TextStyle(fontSize: 14),
+                            Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _takePicture(photoNumber),
+                                  icon: const Icon(Icons.camera_alt, size: 18),
+                                  label: Text(
+                                    photo == null ? 'Capturar' : 'Recapturar',
+                                    style: const TextStyle(fontSize: 12),
                                   ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF3B82F6),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                                  style: ElevatedButton.styleFrom(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 8),
                                   ),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  );
-
-                  if (isWide) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: cameraCard),
-                        const SizedBox(width: 16),
-                        Expanded(child: infoCard),
-                      ],
-                    );
-                  } else {
-                    return SingleChildScrollView(
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  if (_isProcessing)
+                    Center(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          cameraCard,
-                          const SizedBox(height: 16),
-                          infoCard,
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 12),
+                          const Text('Procesando imágenes...'),
                         ],
                       ),
-                    );
-                  }
-                },
+                    )
+                  else
+                    Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed:
+                                photosCount >= 3 ? _registerEmbeddings : null,
+                            icon: const Icon(Icons.cloud_upload),
+                            label: const Text('Guardar Fotos'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              backgroundColor:
+                                  photosCount >= 3 ? Colors.green : Colors.grey,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (photosCount < 3)
+                          Text(
+                            'Captura al menos 3 fotos para continuar',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.red.shade600,
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _resetForm(),
+                            icon: const Icon(Icons.arrow_back),
+                            label: const Text('Volver'),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
             ),
           ),
