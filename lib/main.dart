@@ -5,6 +5,7 @@ import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/face_registration_screen.dart';
 import 'screens/face_recognition_screen.dart';
+import 'screens/attendance_registration_screen.dart';
 import 'screens/chat_interface_screen.dart';
 import 'providers/data_provider.dart';
 
@@ -57,6 +58,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = const [
     DashboardScreen(),
     FaceRegistrationScreen(),
+    AttendanceRegistrationScreen(),
     FaceRecognitionScreen(),
     ChatInterfaceScreen(),
   ];
@@ -87,6 +89,10 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.add_a_photo),
             label: 'Registrar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.check_circle_outline),
+            label: 'Asistencia',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.face_retouching_natural),

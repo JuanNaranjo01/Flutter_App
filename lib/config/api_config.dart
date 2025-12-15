@@ -11,6 +11,9 @@ class ApiConfig {
   static const String registerEmbeddingsEndpoint =
       '$apiPath/register_student_embeddings';
 
+  // Endpoints de reconocimiento y asistencia
+  static const String recognizeAndMarkEndpoint = '$apiPath/recognize_mobile';
+
   // Endpoints generales
   static const String facesEndpoint = '/faces';
   static const String attendanceEndpoint = '/attendance';

@@ -1,7 +1,10 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
+import 'dart:async';
 import '../config/api_config.dart';
 import '../models/student.dart';
+import '../models/attendance_response.dart';
 
 class ApiService {
   // Cliente HTTP con timeouts configurados
@@ -185,6 +188,91 @@ class ApiService {
 
     throw Exception('Error desconocido al registrar embeddings');
   }
+
+  /// Registra asistencia mediante reconocimiento facial
+  /// [frames]: lista de 4 imágenes en formato base64 (data:image/jpeg;base64,...)
+  /// Retorna [AttendanceResponse] con los datos del registro
+  static Future<AttendanceResponse> registrarAsistencia({
+    required List<String> frames,
+    int maxRetries = 2,
+  }) async {
+    // Validar cantidad de frames
+    if (frames.length != 4) {
+      throw ArgumentError(
+          'Se requieren exactamente 4 frames. Se recibieron ${frames.length}.');
+    }
+
+    int retries = 0;
+
+    while (retries <= maxRetries) {
+      try {
+        final requestBody = {
+          'images': frames,
+        };
+
+        final response = await _httpClient
+            .post(
+              Uri.parse(
+                  '${ApiConfig.baseUrl}${ApiConfig.recognizeAndMarkEndpoint}'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode(requestBody),
+            )
+            .timeout(
+              const Duration(seconds: 30),
+              onTimeout: () => throw TimeoutException(
+                  'El servidor tardó demasiado procesando el reconocimiento'),
+            );
+
+        final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+
+        if (response.statusCode == 200) {
+          return AttendanceResponse.fromJson(responseData);
+        } else if (response.statusCode == 404) {
+          // No hay sesión activa o no se reconoció el rostro
+          return AttendanceResponse.error(
+            responseData['error'] ?? 'Error desconocido',
+          );
+        } else if (response.statusCode == 400) {
+          // Asistencia duplicada
+          return AttendanceResponse.error(
+            responseData['error'] ?? 'Error desconocido',
+          );
+        } else {
+          return AttendanceResponse.error(
+            'Error ${response.statusCode}: ${responseData['error'] ?? responseData['message']}',
+          );
+        }
+      } on TimeoutException catch (e) {
+        retries++;
+        if (retries > maxRetries) {
+          return AttendanceResponse.error(
+            'El servidor no responde. Verifica que esté en línea y que estés conectado a la misma red WiFi.',
+          );
+        }
+      } on SocketException catch (e) {
+        return AttendanceResponse.error(
+          'Error de conexión: No se puede conectar al servidor en ${ApiConfig.baseUrl}. Verifica que:\n\n'
+          '• El servidor esté funcionando\n'
+          '• Estés conectado a la misma red WiFi\n'
+          '• La dirección IP sea correcta (${ApiConfig.baseUrl})',
+        );
+      } on http.ClientException catch (e) {
+        return AttendanceResponse.error(
+          'Error de red: No se puede establecer conexión. Verifica tu conexión WiFi.',
+        );
+      } on FormatException catch (e) {
+        return AttendanceResponse.error(
+          'Error al procesar la respuesta del servidor.',
+        );
+      } catch (e) {
+        return AttendanceResponse.error(
+          'Error inesperado: ${e.toString()}',
+        );
+      }
+    }
+
+    return AttendanceResponse.error('Error desconocido al registrar asistencia');
+  }
 }
 
 // Excepciones personalizadas
@@ -202,24 +290,6 @@ class NotFoundException implements Exception {
   final String message;
 
   NotFoundException(this.message);
-
-  @override
-  String toString() => message;
-}
-
-class TimeoutException implements Exception {
-  final String message;
-
-  TimeoutException(this.message);
-
-  @override
-  String toString() => message;
-}
-
-class SocketException implements Exception {
-  final String message;
-
-  SocketException(this.message);
 
   @override
   String toString() => message;
