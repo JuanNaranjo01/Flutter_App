@@ -5,6 +5,7 @@ class ApiConfig {
 
   // Endpoints de autenticación
   static const String loginEndpoint = '/login';
+  static const String verifyTeacherEndpoint = '/api/verify_teacher';
 
   // Endpoints de embeddings faciales
   static const String searchStudentEndpoint = '$apiPath/search_student';

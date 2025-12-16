@@ -1,39 +1,24 @@
 """
-Servidor Flask para AsistenciaGuard UCEVA
-Endpoint para verificar docentes en la tabla 'docentes'
+INSTRUCCIONES: Copia y pega este código en tu servidor Flask existente
+===========================================================================
+
+OPCIÓN 1: Si tu servidor ya tiene get_db_connection() definido
+---------------------------------------------------------------
+Copia solo la función verify_teacher() (línea 35 en adelante)
+Y agrégala con los demás endpoints
+
+OPCIÓN 2: Si no tienes get_db_connection()
+-------------------------------------------
+Copia todo el código desde la línea 12 en adelante
+===========================================================================
 """
 
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import psycopg2
+from flask import request, jsonify
 from psycopg2.extras import RealDictCursor
-import os
 
-app = Flask(__name__)
-CORS(app)  # Permitir peticiones desde Flutter
-
-# ========================================
-# CONFIGURACIÓN DE LA BASE DE DATOS
-# ========================================
-# ⚠️ IMPORTANTE: Actualizar con tus credenciales reales
-DB_CONFIG = {
-    'host': os.getenv('DB_HOST', '192.168.100.99'),  # Cambiar por tu host
-    'database': os.getenv('DB_NAME', 'tu_base_datos'),  # Cambiar por tu BD
-    'user': os.getenv('DB_USER', 'tu_usuario'),  # Cambiar por tu usuario
-    'password': os.getenv('DB_PASSWORD', 'tu_password'),  # Cambiar por tu password
-    'port': int(os.getenv('DB_PORT', 5432))
-}
-
-
-def get_db_connection():
-    """Crear conexión a la base de datos PostgreSQL"""
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        return conn
-    except psycopg2.Error as e:
-        print(f"❌ Error conectando a la base de datos: {e}")
-        return None
-
+# ============================================================================
+# ENDPOINT PARA VERIFICAR DOCENTES - AGREGAR A TU SERVIDOR FLASK EXISTENTE
+# ============================================================================
 
 @app.route('/api/verify-teacher', methods=['POST'])
 def verify_teacher():
@@ -45,26 +30,25 @@ def verify_teacher():
             "email": "docente@uceva.edu.co"
         }
     
-    Response (200 OK - Docente encontrado):
+    Response (200 OK):
         {
             "success": true,
             "teacher": {
                 "id": 1,
-                "codigo": "DOC12345",
+                "codigo": "1234567890",
                 "nombre": "Juan Pérez",
                 "email": "juan.perez@uceva.edu.co",
-                "departamento": "Ingeniería de Sistemas"
+                "departamento": "HORA CATEDRA"
             }
         }
     
-    Response (404 Not Found - Docente NO encontrado):
+    Response (404 Not Found):
         {
             "success": false,
             "message": "Docente no encontrado"
         }
     """
     try:
-        # Obtener datos del request
         data = request.get_json()
         
         if not data or 'email' not in data:
@@ -75,15 +59,10 @@ def verify_teacher():
         
         email = data['email'].lower().strip()
         
-        # Validar formato de email
-        if '@' not in email:
-            return jsonify({
-                'success': False,
-                'message': 'Email inválido'
-            }), 400
+        # USAR TU CONEXIÓN EXISTENTE
+        # Si tu servidor tiene una función diferente para conectar, úsala aquí
+        conn = get_db_connection()  # ⬅️ Ajusta esto si tu función se llama diferente
         
-        # Conectar a la base de datos
-        conn = get_db_connection()
         if not conn:
             return jsonify({
                 'success': False,
@@ -93,7 +72,7 @@ def verify_teacher():
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
-            # Consulta ajustada a la estructura real de la tabla docentes
+            # Query ajustada a tu estructura real de tabla docentes
             query = """
                 SELECT 
                     "Id_docente" as id,
@@ -128,7 +107,7 @@ def verify_teacher():
                     'message': 'Docente no encontrado'
                 }), 404
                 
-        except psycopg2.Error as e:
+        except Exception as e:
             if conn:
                 conn.close()
             print(f"❌ Error en la consulta SQL: {e}")
@@ -145,25 +124,15 @@ def verify_teacher():
         }), 500
 
 
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """Endpoint para verificar que el servidor está funcionando"""
-    return jsonify({
-        'status': 'ok',
-        'message': 'Servidor AsistenciaGuard funcionando correctamente'
-    }), 200
-
-
-if __name__ == '__main__':
-    print("=" * 60)
-    print("🚀 Servidor AsistenciaGuard UCEVA")
-    print("=" * 60)
-    print(f"📍 Host: 0.0.0.0")
-    print(f"🔌 Puerto: 5000")
-    print(f"🔗 Endpoint: POST /api/verify-teacher")
-    print(f"❤️  Health check: GET /api/health")
-    print("=" * 60)
-    print("⚠️  RECUERDA: Actualizar DB_CONFIG con tus credenciales reales")
-    print("=" * 60)
-    
-    app.run(host='0.0.0.0', port=5000, debug=True)
+# ===========================================================================
+# INSTRUCCIONES DE USO:
+# ===========================================================================
+# 1. Copia la función verify_teacher() completa (líneas 35-106)
+# 2. Pégala en tu servidor Flask junto a los otros endpoints
+# 3. Verifica que tengas: from psycopg2.extras import RealDictCursor
+# 4. Si tu función de conexión se llama diferente, ajusta línea 70
+# 5. Reinicia tu servidor Flask
+# 6. Prueba con: curl -X POST http://192.168.100.99:5000/api/verify-teacher \
+#                -H "Content-Type: application/json" \
+#                -d '{"email": "test@uceva.edu.co"}'
+# ===========================================================================

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,50 +11,112 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _authService = AuthService();
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+  /// Manejar login con Google
+  Future<void> _handleGoogleLogin() async {
+    setState(() {
+      _isLoading = true;
+    });
 
-      final dataProvider = Provider.of<DataProvider>(context, listen: false);
-
-      // Simular delay de red
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      final success = dataProvider.loginWithEmail(_emailController.text);
+    try {
+      final result = await _authService.signInWithGoogle();
 
       setState(() {
         _isLoading = false;
       });
 
-      if (success) {
-        if (mounted) {
-          // Login exitoso - navegar a la pantalla principal
-          Navigator.of(context).pushReplacementNamed('/home');
-        }
+      if (!mounted) return;
+
+      if (result.success && result.teacher != null) {
+        // Guardar el docente en el provider
+        final dataProvider = Provider.of<DataProvider>(context, listen: false);
+        dataProvider.loginWithTeacher(result.teacher!);
+
+        // Navegar a la pantalla principal
+        Navigator.of(context).pushReplacementNamed('/home');
       } else {
-        if (mounted) {
-          // Mostrar error
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Correo no autorizado. Use un correo institucional @uceva.edu.co'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 3),
+        // Mostrar error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        // Mostrar dialog con el error completo
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Error de Conexión'),
+              ],
             ),
-          );
-        }
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    '⚠️ No se pudo conectar al servidor',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Detalles del error:'),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: SelectableText(
+                      e.toString(),
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '💡 Solución:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const Text(
+                    '• Verifica que tengas VPN activa\n'
+                    '• Asegúrate de tener conexión a internet\n'
+                    '• El servidor debe estar corriendo',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('CERRAR'),
+              ),
+            ],
+          ),
+        );
       }
     }
   }
@@ -131,218 +194,122 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(32.0),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const Text(
-                              'Iniciar Sesión',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1F2937),
-                              ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            'Iniciar Sesión',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1F2937),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Ingresa con tu correo institucional',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Usa tu correo institucional @uceva.edu.co',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
                             ),
-                            const SizedBox(height: 24),
+                          ),
+                          const SizedBox(height: 32),
 
-                            // Campo de email
-                            TextFormField(
-                              controller: _emailController,
-                              decoration: InputDecoration(
-                                labelText: 'Correo Institucional',
-                                hintText: 'nombre@uceva.edu.co',
-                                prefixIcon: const Icon(Icons.email),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey[50],
+                          // Botón de Google Login
+                          ElevatedButton(
+                            onPressed: _isLoading ? null : _handleGoogleLogin,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Por favor ingrese su correo';
-                                }
-                                if (!value.contains('@')) {
-                                  return 'Ingrese un correo válido';
-                                }
-                                return null;
-                              },
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.done,
-                              onFieldSubmitted: (_) => _handleLogin(),
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFF1F2937),
+                              side: BorderSide(
+                                color: Colors.grey[300]!,
+                                width: 2,
+                              ),
+                              elevation: 2,
                             ),
-                            const SizedBox(height: 24),
-
-                            // Botón de Google Login
-                            ElevatedButton(
-                              onPressed: _isLoading ? null : _handleLogin,
-                              style: ElevatedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                backgroundColor: Colors.white,
-                                foregroundColor: const Color(0xFF1F2937),
-                                side: BorderSide(
-                                  color: Colors.grey[300]!,
-                                  width: 2,
-                                ),
-                                elevation: 2,
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                          Color(0xFF2563EB),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF2563EB),
+                                      ),
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Image.network(
+                                        'https://www.google.com/favicon.ico',
+                                        width: 20,
+                                        height: 20,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return const Icon(
+                                            Icons.login,
+                                            size: 20,
+                                            color: Color(0xFF2563EB),
+                                          );
+                                        },
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const Text(
+                                        'Continuar con Google',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                    )
-                                  : Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Image.network(
-                                          'https://www.google.com/favicon.ico',
-                                          width: 20,
-                                          height: 20,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return const Icon(
-                                              Icons.login,
-                                              size: 20,
-                                              color: Color(0xFF2563EB),
-                                            );
-                                          },
-                                        ),
-                                        const SizedBox(width: 12),
-                                        const Text(
-                                          'Continuar con Google',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                    ],
+                                  ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Información importante
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.blue[200]!,
+                                width: 1,
+                              ),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.blue[700],
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Solo docentes registrados en la base de datos pueden acceder',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.blue[900],
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Información de credenciales de prueba
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFFDBEAFE), // blue-100
-                          Color(0xFFBFDBFE), // blue-200
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Correos de prueba:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[800],
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFFDBEAFE),
-                                Color(0xFFEFF6FF),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'juan.perez@uceva.edu.co',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[900],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Dr. Juan Carlos Pérez - Ingeniería de Sistemas',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFFD1FAE5),
-                                Color(0xFFA7F3D0),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'maria.rodriguez@uceva.edu.co',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[900],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Dra. María Elena Rodríguez - Ingeniería de Software',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
 
                   // Footer
                   const Text(

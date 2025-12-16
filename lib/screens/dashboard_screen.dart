@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/data_provider.dart';
+import '../services/auth_service.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -19,13 +20,22 @@ class DashboardScreen extends StatelessWidget {
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final dataProvider =
                     Provider.of<DataProvider>(context, listen: false);
+                final authService = AuthService();
+
+                // Cerrar sesión de Google
+                await authService.signOut();
+
+                // Limpiar estado local
                 dataProvider.logout();
-                Navigator.of(context).pop();
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/login', (Route<dynamic> route) => false);
+
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/login', (Route<dynamic> route) => false);
+                }
               },
               style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red, foregroundColor: Colors.white),
@@ -91,7 +101,7 @@ class DashboardScreen extends StatelessWidget {
                                     color: Colors.white,
                                     fontSize: 28,
                                     fontWeight: FontWeight.bold)),
-                            Text(data.currentTeacher?.departamento ?? '',
+                            Text(data.currentTeacher?.dedicacion ?? '',
                                 style: const TextStyle(
                                     color: Color(0xFFBFDBFE), fontSize: 16)),
                           ],

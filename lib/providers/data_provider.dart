@@ -5,63 +5,20 @@ import '../models/teacher.dart';
 import '../models/student.dart';
 
 class DataProvider with ChangeNotifier {
-  // Lista de docentes simulados (en producción esto vendría de un backend)
-  final List<Teacher> _teachers = [
-    Teacher(
-      id: '1',
-      codigo: 'DOC12345',
-      nombre: 'Dr. Juan Carlos Pérez',
-      email: 'juan.perez@uceva.edu.co',
-      departamento: 'Ingeniería de Sistemas',
-      password: 'uceva2024', // En producción esto debe estar hasheado
-    ),
-    Teacher(
-      id: '2',
-      codigo: 'DOC67890',
-      nombre: 'Dra. María Elena Rodríguez',
-      email: 'maria.rodriguez@uceva.edu.co',
-      departamento: 'Ingeniería de Software',
-      password: 'uceva2024',
-    ),
-  ];
-
   Teacher? _currentTeacher;
   bool _isAuthenticated = false;
 
   Teacher? get currentTeacher => _currentTeacher;
   bool get isAuthenticated => _isAuthenticated;
 
-  // Método de login
-  bool login(String codigo, String password) {
-    try {
-      final teacher = _teachers.firstWhere(
-        (t) => t.codigo == codigo && t.password == password,
-      );
-      _currentTeacher = teacher;
-      _isAuthenticated = true;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      return false;
-    }
+  /// Método de login con objeto Teacher (usado por AuthService)
+  void loginWithTeacher(Teacher teacher) {
+    _currentTeacher = teacher;
+    _isAuthenticated = true;
+    notifyListeners();
   }
 
-  // Método de login con email
-  bool loginWithEmail(String email) {
-    try {
-      final teacher = _teachers.firstWhere(
-        (t) => t.email.toLowerCase() == email.toLowerCase(),
-      );
-      _currentTeacher = teacher;
-      _isAuthenticated = true;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // Método de logout
+  /// Método de logout
   void logout() {
     _currentTeacher = null;
     _isAuthenticated = false;
