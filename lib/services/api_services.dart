@@ -111,7 +111,6 @@ class ApiService {
         rethrow;
       }
     }
-
     throw Exception('Error desconocido en la búsqueda');
   }
 
@@ -271,7 +270,8 @@ class ApiService {
       }
     }
 
-    return AttendanceResponse.error('Error desconocido al registrar asistencia');
+    return AttendanceResponse.error(
+        'Error desconocido al registrar asistencia');
   }
 }
 
