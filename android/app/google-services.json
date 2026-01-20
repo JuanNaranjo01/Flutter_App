@@ -20,6 +20,10 @@
             "package_name": "com.uceva.asistencia_guard",
             "certificate_hash": "598b179a701104b10f330b36111cf8b326e272c2"
           }
+        },
+        {
+          "client_id": "827103064094-pd3fuh7ip54ump5lj19uq1gnb093d9qs.apps.googleusercontent.com",
+          "client_type": 3
         }
       ],
       "api_key": [
@@ -29,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "827103064094-pd3fuh7ip54ump5lj19uq1gnb093d9qs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

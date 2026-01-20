@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
+// import 'package:google_fonts/google_fonts.dart'; // Comentado temporalmente por error de red
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/face_registration_screen.dart';
@@ -32,7 +32,7 @@ class AsistenciaGuardApp extends StatelessWidget {
           seedColor: const Color(0xFF3b82f6),
           brightness: Brightness.light,
         ),
-        textTheme: GoogleFonts.interTextTheme(),
+        // textTheme: GoogleFonts.interTextTheme(), // Comentado temporalmente por error de red
         scaffoldBackgroundColor: const Color(0xFFF9FAFB),
       ),
       // Inicia directamente con el LoginScreen

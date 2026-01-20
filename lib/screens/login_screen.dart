@@ -13,13 +13,14 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
+  String? _pendingEmail; // Email en espera de verificación
 
   @override
   void dispose() {
     super.dispose();
   }
 
-  /// Manejar login con Google
+  /// PASO 1: Login con Google (SIN VPN)
   Future<void> _handleGoogleLogin() async {
     setState(() {
       _isLoading = true;
@@ -34,12 +35,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      if (result.success && result.teacher != null) {
-        // Guardar el docente en el provider
+      // Verificar si necesita verificación con servidor
+      if (result.message == 'PENDING_VERIFICATION' && result.pendingEmail != null) {
+        // Guardar email pendiente
+        setState(() {
+          _pendingEmail = result.pendingEmail;
+        });
+
+        // Mostrar diálogo pidiendo activar VPN
+        _showVPNDialog();
+      } else if (result.success && result.teacher != null) {
+        // Login completo exitoso (no debería pasar con el nuevo flujo)
         final dataProvider = Provider.of<DataProvider>(context, listen: false);
         dataProvider.loginWithTeacher(result.teacher!);
-
-        // Navegar a la pantalla principal
         Navigator.of(context).pushReplacementNamed('/home');
       } else {
         // Mostrar error
@@ -57,68 +65,144 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       if (mounted) {
-        // Mostrar dialog con el error completo
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.red),
-                SizedBox(width: 8),
-                Text('Error de Conexión'),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    '⚠️ No se pudo conectar al servidor',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('Detalles del error:'),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red.shade200),
-                    ),
-                    child: SelectableText(
-                      e.toString(),
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '💡 Solución:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const Text(
-                    '• Verifica que tengas VPN activa\n'
-                    '• Asegúrate de tener conexión a internet\n'
-                    '• El servidor debe estar corriendo',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('CERRAR'),
-              ),
-            ],
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
           ),
         );
       }
     }
+  }
+
+  /// PASO 2: Verificar con servidor (CON VPN)
+  Future<void> _handleVerifyWithServer() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final result = await _authService.verifyWithServer();
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (!mounted) return;
+
+      if (result.success && result.teacher != null) {
+        // Guardar el docente en el provider
+        final dataProvider = Provider.of<DataProvider>(context, listen: false);
+        dataProvider.loginWithTeacher(result.teacher!);
+
+        // Navegar a la pantalla principal
+        Navigator.of(context).pushReplacementNamed('/home');
+      } else {
+        // Mostrar error
+        Navigator.of(context).pop(); // Cerrar diálogo de VPN si está abierto
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+
+        // Si puede reintentar, mostrar el diálogo de VPN de nuevo
+        if (result.requiresRetry) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) _showVPNDialog();
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        Navigator.of(context).pop(); // Cerrar diálogo si está abierto
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Mostrar diálogo pidiendo activar VPN
+  void _showVPNDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.vpn_key, color: Colors.orange, size: 28),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Activa la VPN',
+                style: TextStyle(fontSize: 20),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Email: $_pendingEmail',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '✅ Google Sign-In exitoso\n\n'
+              '🔐 Ahora necesitas ACTIVAR LA VPN para verificar tu cuenta con el servidor.\n\n'
+              'Pasos:\n'
+              '1. Activa la VPN en tu celular\n'
+              '2. Presiona "Verificar Ahora"',
+              style: TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              setState(() {
+                _pendingEmail = null;
+              });
+              _authService.signOut();
+            },
+            child: const Text('CANCELAR'),
+          ),
+          ElevatedButton.icon(
+            onPressed: _isLoading ? null : _handleVerifyWithServer,
+            icon: _isLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.check_circle),
+            label: Text(_isLoading ? 'Verificando...' : 'Verificar Ahora'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

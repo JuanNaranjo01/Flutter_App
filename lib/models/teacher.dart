@@ -30,18 +30,19 @@ class Teacher {
   /// Constructor desde JSON (para respuestas del backend)
   factory Teacher.fromJson(Map<String, dynamic> json) {
     return Teacher(
-      id: json['id_docente'],
-      codigo: json['identificacion'] ?? '',
-      nombre: json['nombre_docente'] ?? '',
-      email: json['correo'] ?? '',
-      correoPersonal: json['correo_personal'],
+      // Soporta ambos formatos: snake_case (BD) y lowercase (endpoint)
+      id: json['id_docente'] ?? json['id'],
+      codigo: json['identificacion'] ?? json['codigo'] ?? '',
+      nombre: json['nombre_docente'] ?? json['nombre'] ?? '',
+      email: json['correo'] ?? json['email'] ?? '',
+      correoPersonal: json['correo_personal'] ?? json['correo_institucional'],
       telefono: json['telefono'],
       celular: json['celular'],
-      dedicacion: json['dedicacion'],
+      dedicacion: json['dedicacion'] ?? json['departamento'],
       vinculacion: json['vinculacion'],
       estado: json['docentes_en_estado'],
-      periodoSemestral: json['periodo_semestral'],
-      nivelAcademico: json['nivel_academico'],
+      periodoSemestral: json['periodo_semestral'] ?? json['Periodo'],
+      nivelAcademico: json['nivel_academico'] ?? json['Semestre'],
     );
   }
 
