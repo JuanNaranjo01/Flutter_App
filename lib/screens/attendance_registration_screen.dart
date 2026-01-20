@@ -23,6 +23,7 @@ class _AttendanceRegistrationScreenState
   int _currentFrame = 0;
   String _statusMessage = 'Listo para registrar asistencia';
   List<CameraDescription>? _cameras;
+  final List<AttendanceData> _registeredAttendances = [];
 
   @override
   void initState() {
@@ -218,6 +219,7 @@ class _AttendanceRegistrationScreenState
             onPressed: () {
               Navigator.of(context).pop();
               setState(() {
+                _registeredAttendances.insert(0, data);
                 _statusMessage = 'Listo para registrar asistencia';
               });
             },
@@ -312,132 +314,258 @@ class _AttendanceRegistrationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Registro de Asistencia'),
-        backgroundColor: const Color(0xFF3b82f6),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          // Camera Preview
-          Expanded(
-            flex: 3,
-            child: Container(
-              color: Colors.black,
-              child: _isCameraInitialized
-                  ? Stack(
-                      fit: StackFit.expand,
+      backgroundColor: const Color(0xFFF9FAFB),
+      body: CustomScrollView(
+        slivers: [
+          // App Bar con gradiente
+          SliverAppBar(
+            expandedHeight: 120,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF10B981),
+                      Color(0xFF059669),
+                    ],
+                  ),
+                ),
+                child: const SafeArea(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        CameraPreview(_cameraController!),
-                        // Overlay con guía facial
-                        Center(
-                          child: Container(
-                            width: 280,
-                            height: 360,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: _isCapturing
-                                    ? Colors.greenAccent
-                                    : Colors.white.withOpacity(0.7),
-                                width: 3,
-                              ),
-                              borderRadius: BorderRadius.circular(180),
-                            ),
+                        Text(
+                          'Registro de Asistencia',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        // Indicador de captura
-                        if (_isCapturing)
-                          Positioned(
-                            top: 40,
-                            left: 0,
-                            right: 0,
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.greenAccent,
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                child: Text(
-                                  'Frame $_currentFrame/4',
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                        SizedBox(height: 4),
+                        Text(
+                          'Reconocimiento facial automático',
+                          style: TextStyle(
+                            color: Color(0xFFD1FAE5),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Contenido
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
+                // Camera Preview con altura fija
+                SizedBox(
+                  height: 400,
+                  child: Container(
+                    color: Colors.black,
+                    child: _isCameraInitialized
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              CameraPreview(_cameraController!),
+                              // Overlay con guía facial
+                              Center(
+                                child: Container(
+                                  width: 240,
+                                  height: 300,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: _isCapturing
+                                          ? Colors.greenAccent
+                                          : Colors.white.withValues(alpha: 0.7),
+                                      width: 3,
+                                    ),
+                                    borderRadius: BorderRadius.circular(150),
                                   ),
                                 ),
                               ),
+                              // Indicador de captura
+                              if (_isCapturing)
+                                Positioned(
+                                  top: 30,
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.greenAccent,
+                                        borderRadius: BorderRadius.circular(24),
+                                      ),
+                                      child: Text(
+                                        'Frame $_currentFrame/4',
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          )
+                        : Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const CircularProgressIndicator(color: Colors.white),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _statusMessage,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ],
                             ),
                           ),
-                      ],
-                    )
-                  : Center(
+                  ),
+                ),
+
+                // Panel de control pegado a la cámara
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, -5),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                  // Lista de asistencias registradas
+                  if (_registeredAttendances.isNotEmpty)
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 200),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const CircularProgressIndicator(color: Colors.white),
-                          const SizedBox(height: 16),
-                          Text(
-                            _statusMessage,
-                            style: const TextStyle(color: Colors.white),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Asistencias Registradas',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green.shade900,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade100,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${_registeredAttendances.length}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green.shade700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Flexible(
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _registeredAttendances.length,
+                              itemBuilder: (context, index) {
+                                final attendance = _registeredAttendances[index];
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(
+                                      color: Colors.green.shade200,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    leading: CircleAvatar(
+                                      backgroundColor: Colors.green.shade100,
+                                      child: Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green.shade700,
+                                      ),
+                                    ),
+                                    title: Text(
+                                      attendance.estudiante,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Código: ${attendance.codigoEstudiante}',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${attendance.hora} - ${(attendance.confidence * 100).toStringAsFixed(1)}%',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    trailing: Icon(
+                                      Icons.verified,
+                                      color: Colors.green.shade600,
+                                      size: 20,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ],
                       ),
                     ),
-            ),
-          ),
 
-          // Panel de control
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Icono de estado
-                  Icon(
-                    _isProcessing
-                        ? Icons.analytics
-                        : _isCapturing
-                            ? Icons.camera
-                            : Icons.face_retouching_natural,
-                    size: 48,
-                    color: _isCapturing || _isProcessing
-                        ? const Color(0xFF3b82f6)
-                        : Colors.grey.shade400,
-                  ),
+                  // Espaciado antes del botón
                   const SizedBox(height: 16),
-
-                  // Mensaje de estado
-                  Text(
-                    _statusMessage,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
 
                   // Botón de registro
                   SizedBox(
@@ -448,19 +576,19 @@ class _AttendanceRegistrationScreenState
                           ? null
                           : _captureFramesAndRegister,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3b82f6),
+                        backgroundColor: const Color(0xFF10B981),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        elevation: 2,
+                        elevation: 4,
                         disabledBackgroundColor: Colors.grey.shade300,
                       ),
                       child: _isProcessing
-                          ? Row(
+                          ? const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const SizedBox(
+                                SizedBox(
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
@@ -468,8 +596,8 @@ class _AttendanceRegistrationScreenState
                                     color: Colors.white,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                const Text(
+                                SizedBox(width: 12),
+                                Text(
                                   'Procesando...',
                                   style: TextStyle(
                                     fontSize: 18,
@@ -478,30 +606,26 @@ class _AttendanceRegistrationScreenState
                                 ),
                               ],
                             )
-                          : const Text(
-                              'Registrar Asistencia',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.check_circle, size: 24),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Registrar Asistencia',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                     ),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  // Instrucciones
-                  if (!_isCapturing && !_isProcessing)
-                    Text(
-                      'Coloca tu rostro en el óvalo y presiona el botón',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                ],
-              ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],

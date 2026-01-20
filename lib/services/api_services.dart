@@ -104,7 +104,7 @@ class ApiService {
       } on SocketException {
         retries++;
         if (retries > maxRetries) {
-          throw SocketException(
+          throw const SocketException(
               'No se pudo conectar al servidor. Verifica tu conexión WiFi.');
         }
       } catch (e) {
@@ -241,25 +241,25 @@ class ApiService {
             'Error ${response.statusCode}: ${responseData['error'] ?? responseData['message']}',
           );
         }
-      } on TimeoutException catch (e) {
+      } on TimeoutException {
         retries++;
         if (retries > maxRetries) {
           return AttendanceResponse.error(
             'El servidor no responde. Verifica que esté en línea y que estés conectado a la misma red WiFi.',
           );
         }
-      } on SocketException catch (e) {
+      } on SocketException {
         return AttendanceResponse.error(
           'Error de conexión: No se puede conectar al servidor en ${ApiConfig.baseUrl}. Verifica que:\n\n'
           '• El servidor esté funcionando\n'
           '• Estés conectado a la misma red WiFi\n'
           '• La dirección IP sea correcta (${ApiConfig.baseUrl})',
         );
-      } on http.ClientException catch (e) {
+      } on http.ClientException {
         return AttendanceResponse.error(
           'Error de red: No se puede establecer conexión. Verifica tu conexión WiFi.',
         );
-      } on FormatException catch (e) {
+      } on FormatException {
         return AttendanceResponse.error(
           'Error al procesar la respuesta del servidor.',
         );

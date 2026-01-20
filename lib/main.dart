@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/face_registration_screen.dart';
-import 'screens/face_recognition_screen.dart';
+// import 'screens/face_recognition_screen.dart'; // Comentado - no usado actualmente
 import 'screens/attendance_registration_screen.dart';
 import 'screens/chat_interface_screen.dart';
 import 'providers/data_provider.dart';
@@ -59,7 +59,7 @@ class _MainScreenState extends State<MainScreen> {
     DashboardScreen(),
     FaceRegistrationScreen(),
     AttendanceRegistrationScreen(),
-    FaceRecognitionScreen(),
+    // FaceRecognitionScreen(), // Oculta temporalmente
     ChatInterfaceScreen(),
   ];
 
@@ -94,10 +94,10 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.check_circle_outline),
             label: 'Asistencia',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.face_retouching_natural),
-            label: 'Reconocer',
-          ),
+          // BottomNavigationBarItem(
+          //   icon: Icon(Icons.face_retouching_natural),
+          //   label: 'Reconocer',
+          // ),
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment),
             label: 'Consultas',
