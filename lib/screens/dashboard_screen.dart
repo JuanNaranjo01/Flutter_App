@@ -64,7 +64,7 @@ class DashboardScreen extends StatelessWidget {
           return CustomScrollView(
             slivers: [
               SliverAppBar(
-                expandedHeight: 160,
+                expandedHeight: 210,
                 pinned: true,
                 flexibleSpace: FlexibleSpaceBar(
                   background: Container(
@@ -80,30 +80,60 @@ class DashboardScreen extends StatelessWidget {
                     ),
                     child: SafeArea(
                       child: Padding(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.fromLTRB(20, 12, 70, 16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            const Row(
+                            Row(
                               children: [
-                                Icon(Icons.emoji_events,
-                                    color: Colors.white, size: 32),
-                                SizedBox(width: 12),
-                                Text('Bienvenido,',
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(Icons.emoji_events,
+                                      color: Colors.white, size: 26),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text('Bienvenido,',
                                     style: TextStyle(
-                                        color: Colors.white70, fontSize: 18)),
+                                        color: Colors.white70,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w400)),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(data.currentTeacher?.nombre ?? 'Docente',
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold)),
-                            Text(data.currentTeacher?.dedicacion ?? '',
-                                style: const TextStyle(
-                                    color: Color(0xFFBFDBFE), fontSize: 16)),
+                            const SizedBox(height: 12),
+                            Text(
+                              data.currentTeacher?.nombre ?? 'Docente',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.2,
+                                  letterSpacing: 0.2),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            if (data.currentTeacher?.dedicacion != null &&
+                                data.currentTeacher!.dedicacion!.isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  data.currentTeacher!.dedicacion!,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -111,10 +141,16 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
                 actions: [
-                  IconButton(
-                    icon: const Icon(Icons.logout),
-                    onPressed: () => _showLogoutDialog(context),
-                    tooltip: 'Cerrar Sesión',
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: IconButton(
+                      icon: const Icon(Icons.logout, size: 24),
+                      onPressed: () => _showLogoutDialog(context),
+                      tooltip: 'Cerrar Sesión',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.15),
+                      ),
+                    ),
                   ),
                 ],
               ),

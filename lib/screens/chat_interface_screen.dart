@@ -131,7 +131,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
             slivers: [
               // App Bar con gradiente
               SliverAppBar(
-                expandedHeight: 120,
+                expandedHeight: 140,
                 pinned: true,
                 flexibleSpace: FlexibleSpaceBar(
                   background: Container(
@@ -145,28 +145,32 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                         ],
                       ),
                     ),
-                    child: const SafeArea(
+                    child: SafeArea(
                       child: Padding(
-                        padding: EdgeInsets.all(20),
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Text(
+                            const Text(
                               'Consulta de Asistencias',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 28,
+                                fontSize: 26,
                                 fontWeight: FontWeight.bold,
+                                height: 1.2,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 8),
                             Text(
-                              'Filtra y exporta registros por semestre, corte y materia - Modelo UCEVA',
-                              style: TextStyle(
+                              'Filtra y exporta registros por semestre, corte y materia',
+                              style: const TextStyle(
                                 color: Color(0xFFE9D5FF),
-                                fontSize: 14,
+                                fontSize: 13,
+                                height: 1.3,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -265,58 +269,68 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                             ),
                             const SizedBox(height: 16),
 
-                            // Filtros en fila
+                            // Filtros reorganizados en columnas
+                            // Filtro Materia
+                            DropdownButtonFormField<String>(
+                              value: _selectedMateria,
+                              decoration: InputDecoration(
+                                labelText: 'Materia',
+                                prefixIcon: const Icon(Icons.book, size: 20),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 14),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              isExpanded: true,
+                              items: ['Todas', ...materias]
+                                  .map((materia) => DropdownMenuItem(
+                                        value: materia,
+                                        child: Text(
+                                          materia,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedMateria = value!;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Filtros Semestre y Corte en fila
                             Row(
                               children: [
-                                // Filtro Materia
-                                Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    initialValue: _selectedMateria,
-                                    decoration: InputDecoration(
-                                      labelText: 'Materia',
-                                      prefixIcon: const Icon(Icons.book),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      filled: true,
-                                      fillColor: Colors.grey[50],
-                                    ),
-                                    items: ['Todas', ...materias]
-                                        .map((materia) => DropdownMenuItem(
-                                              value: materia,
-                                              child: Text(
-                                                materia,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ))
-                                        .toList(),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _selectedMateria = value!;
-                                      });
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-
                                 // Filtro Semestre
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
-                                    initialValue: _selectedSemester,
+                                    value: _selectedSemester,
                                     decoration: InputDecoration(
                                       labelText: 'Semestre',
-                                      prefixIcon:
-                                          const Icon(Icons.calendar_today),
+                                      prefixIcon: const Icon(
+                                          Icons.calendar_today,
+                                          size: 20),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 14),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       filled: true,
                                       fillColor: Colors.grey[50],
                                     ),
+                                    isExpanded: true,
                                     items: ['Todos', ...semestres]
                                         .map((sem) => DropdownMenuItem(
                                               value: sem,
-                                              child: Text(sem),
+                                              child: Text(sem,
+                                                  style: const TextStyle(
+                                                      fontSize: 14)),
                                             ))
                                         .toList(),
                                     onChanged: (value) {
@@ -331,16 +345,21 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                                 // Filtro Corte
                                 Expanded(
                                   child: DropdownButtonFormField<String>(
-                                    initialValue: _selectedCorte,
+                                    value: _selectedCorte,
                                     decoration: InputDecoration(
                                       labelText: 'Corte',
-                                      prefixIcon: const Icon(Icons.filter_list),
+                                      prefixIcon: const Icon(Icons.filter_list,
+                                          size: 20),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 14),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       filled: true,
                                       fillColor: Colors.grey[50],
                                     ),
+                                    isExpanded: true,
                                     items: [
                                       'Todos',
                                       '1er Corte',
@@ -349,7 +368,9 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                                     ]
                                         .map((corte) => DropdownMenuItem(
                                               value: corte,
-                                              child: Text(corte),
+                                              child: Text(corte,
+                                                  style: const TextStyle(
+                                                      fontSize: 14)),
                                             ))
                                         .toList(),
                                     onChanged: (value) {
