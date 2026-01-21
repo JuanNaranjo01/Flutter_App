@@ -13,95 +13,36 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
-  bool _showingVerificationDialog = false;
 
   @override
   void dispose() {
     super.dispose();
   }
 
-  /// Manejar el login completo (Google + Verificación)
+  /// Manejar el login con detección automática de VPN
   Future<void> _handleGoogleLogin() async {
-    print('🟢 Iniciando proceso de login...');
     setState(() => _isLoading = true);
 
     try {
-      // PASO 1: Google Sign-In
-      print('🟢 PASO 1: Google Sign-In');
-      final googleResult = await _authService.signInWithGoogle();
-
-      if (!mounted) return;
-
-      // Si canceló o error
-      if (!googleResult.success &&
-          googleResult.message != 'NEEDS_SERVER_VERIFICATION') {
-        setState(() => _isLoading = false);
-        _showError(googleResult.message);
-        return;
-      }
-
-      // Si Google Sign-In exitoso, intentar verificar automáticamente
-      if (googleResult.message == 'NEEDS_SERVER_VERIFICATION') {
-        print(
-            '🟢 Google Sign-In exitoso, intentando verificación automática...');
-
-        // Intentar verificar automáticamente (funciona si están en la universidad)
-        final verifyResult = await _authService.verifyTeacherWithServer();
-
-        if (!mounted) return;
-
-        setState(() => _isLoading = false);
-
-        if (verifyResult.success && verifyResult.teacher != null) {
-          // ✅ Verificación automática exitosa (están en la universidad)
-          print('✅ Verificación automática exitosa');
-          final dataProvider =
-              Provider.of<DataProvider>(context, listen: false);
-          dataProvider.loginWithTeacher(verifyResult.teacher!);
-          Navigator.of(context).pushReplacementNamed('/home');
-        } else {
-          // ❌ Verificación falló - mostrar diálogo para activar VPN
-          print('❌ Verificación automática falló, mostrando diálogo VPN');
-          await _showServerVerificationDialog(googleResult.pendingEmail!);
-        }
-      }
-    } catch (e) {
-      print('❌ Error en _handleGoogleLogin: $e');
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _showError('Error inesperado: ${e.toString()}');
-      }
-    }
-  }
-
-  /// Verificar con el servidor
-  Future<void> _verifyWithServer() async {
-    print('🟢 PASO 2: Verificando con servidor...');
-    setState(() => _isLoading = true);
-
-    try {
-      final result = await _authService.verifyTeacherWithServer();
+      final result = await _authService.signInWithGoogle();
 
       if (!mounted) return;
 
       setState(() => _isLoading = false);
 
       if (result.success && result.teacher != null) {
-        // Login exitoso - cerrar diálogo y navegar
-        if (_showingVerificationDialog) {
-          Navigator.of(context).pop();
-          _showingVerificationDialog = false;
-        }
-
+        // Login exitoso
         final dataProvider = Provider.of<DataProvider>(context, listen: false);
         dataProvider.loginWithTeacher(result.teacher!);
         Navigator.of(context).pushReplacementNamed('/home');
+      } else if (result.needsVpn) {
+        // Necesita VPN - mostrar instrucciones y botón de reintentar
+        _showVpnInstructions();
       } else {
-        // Error de verificación - mostrar y permitir reintentar
+        // Mostrar error
         _showError(result.message);
       }
     } catch (e) {
-      print('❌ Error en _verifyWithServer: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         _showError('Error: ${e.toString()}');
@@ -109,19 +50,17 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Mostrar diálogo de verificación con servidor
-  Future<void> _showServerVerificationDialog(String email) async {
-    _showingVerificationDialog = true;
-
-    final result = await showDialog<bool>(
+  /// Mostrar instrucciones para activar VPN y verificar
+  void _showVpnInstructions() {
+    showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning, color: Colors.orange, size: 28),
-            SizedBox(width: 12),
-            Text('Error de Conexión'),
+            Icon(Icons.vpn_key, color: Colors.orange[700]),
+            const SizedBox(width: 8),
+            const Text('VPN Requerida'),
           ],
         ),
         content: Column(
@@ -129,79 +68,123 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '✅ Autenticación con Google exitosa',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              'Estás conectándote desde fuera de la universidad.',
+              style: TextStyle(fontWeight: FontWeight.w500),
             ),
+            const SizedBox(height: 16),
+            const Text('Para continuar:'),
             const SizedBox(height: 8),
-            Text(
-              'Email: $email',
-              style: const TextStyle(color: Colors.blue),
-            ),
-            const Divider(height: 24),
-            const Text(
-              '🔐 No se pudo conectar al servidor:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
+            _buildStep('1', 'Activa tu VPN de la universidad'),
+            _buildStep('2', 'Presiona "Verificar" cuando esté conectada'),
+            const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.shade50,
+                color: Colors.blue[50],
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade200),
+                border: Border.all(color: Colors.blue[200]!),
               ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    '📍 Si estás en CASA:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Si estás en la universidad, este mensaje no debería aparecer.',
+                      style: TextStyle(fontSize: 12),
+                    ),
                   ),
-                  Text('  → Activa la VPN y presiona "Reintentar"'),
-                  SizedBox(height: 8),
-                  Text(
-                    '🏢 Si estás en la UNIVERSIDAD:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text('  → Verifica tu conexión WiFi'),
                 ],
               ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'La app intentó conectarse automáticamente pero no pudo alcanzar el servidor.',
-              style: TextStyle(fontSize: 13),
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              _authService.cancelPendingVerification();
-              Navigator.of(context).pop(false);
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _authService.signOut();
             },
-            child: const Text('CANCELAR'),
+            child: const Text('Cancelar'),
           ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).pop(true);
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _retryVerification();
             },
-            icon: const Icon(Icons.refresh),
-            label: const Text('Reintentar'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
+              backgroundColor: Colors.green[600],
               foregroundColor: Colors.white,
             ),
+            child: const Text('Verificar'),
           ),
         ],
       ),
     );
+  }
 
-    _showingVerificationDialog = false;
+  Widget _buildStep(String number, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Colors.blue[600],
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
 
-    // Si el usuario presionó "Verificar Cuenta"
-    if (result == true && mounted) {
-      await _verifyWithServer();
+  /// Reintentar verificación después de activar VPN
+  Future<void> _retryVerification() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await _authService.retryVerification();
+
+      if (!mounted) return;
+
+      setState(() => _isLoading = false);
+
+      if (result.success && result.teacher != null) {
+        // Login exitoso
+        final dataProvider = Provider.of<DataProvider>(context, listen: false);
+        dataProvider.loginWithTeacher(result.teacher!);
+        Navigator.of(context).pushReplacementNamed('/home');
+      } else if (result.needsVpn) {
+        // Todavía necesita VPN
+        _showError(
+            'La VPN no está conectada. Por favor verifica tu conexión VPN.');
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) _showVpnInstructions();
+        });
+      } else {
+        // Mostrar error
+        _showError(result.message);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showError('Error: ${e.toString()}');
+      }
     }
   }
 
@@ -211,11 +194,6 @@ class _LoginScreenState extends State<LoginScreen> {
         content: Text(message),
         backgroundColor: Colors.red,
         duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: 'OK',
-          textColor: Colors.white,
-          onPressed: () {},
-        ),
       ),
     );
   }

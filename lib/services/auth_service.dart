@@ -16,16 +16,27 @@ class AuthService {
   );
 
   GoogleSignInAccount? _currentUser;
-  String? _pendingEmail;
 
   GoogleSignInAccount? get currentUser => _currentUser;
-  bool get hasPendingVerification => _pendingEmail != null;
 
-  /// PASO 1: Autenticación con Google (funciona con o sin VPN)
-  /// Retorna el email pero NO verifica con el servidor aún
+  String? _pendingEmail;
+
+  /// Iniciar sesión con Google con detección automática de VPN
   Future<AuthResult> signInWithGoogle() async {
-    print('🔷 [PASO 1] Iniciando Google Sign-In...');
+    print('🔷 Iniciando login con detección automática...');
     try {
+      // 1. Cerrar sesión previa para forzar selección de cuenta
+      await _googleSignIn.signOut();
+      print('🔷 Sesión previa cerrada - Se mostrará selector de cuenta');
+
+      // 2. Verificar si tenemos acceso al servidor ANTES de Google Sign-In
+      print('🔷 Verificando acceso al servidor...');
+      final hasServerAccess = await _checkServerConnectivity();
+      print(hasServerAccess
+          ? '✅ Servidor accesible'
+          : '⚠️ Servidor no accesible');
+
+      // 3. Iniciar sesión con Google (ahora siempre preguntará)
       final GoogleSignInAccount? account = await _googleSignIn.signIn();
 
       if (account == null) {
@@ -39,7 +50,7 @@ class AuthService {
       print('✅ Google Sign-In exitoso: ${account.email}');
       _currentUser = account;
 
-      // Verificar correo institucional
+      // 3. Verificar correo institucional
       if (!_isInstitutionalEmail(account.email)) {
         print('❌ No es correo institucional');
         await _googleSignIn.signOut();
@@ -50,39 +61,104 @@ class AuthService {
         );
       }
 
-      // Guardar email para verificación posterior
-      _pendingEmail = account.email;
-      print('✅ Email institucional válido, pendiente de verificación');
+      print('✅ Email institucional válido');
 
-      return AuthResult(
-        success: false, // false porque falta verificar con servidor
-        message: 'NEEDS_SERVER_VERIFICATION',
-        pendingEmail: account.email,
-      );
+      // 4. Si NO hay acceso al servidor, guardar email y pedir VPN
+      if (!hasServerAccess) {
+        print('⚠️ Sin acceso al servidor - Se requiere VPN');
+        _pendingEmail = account.email;
+        return AuthResult(
+          success: false,
+          message: 'VPN_REQUIRED',
+          needsVpn: true,
+        );
+      }
+
+      // 5. Si hay acceso, verificar directamente
+      print('🔷 Verificando docente en base de datos...');
+      try {
+        final teacher = await _verifyTeacherInDatabase(account.email);
+
+        if (teacher == null) {
+          print('❌ Docente no encontrado en BD');
+          await _googleSignIn.signOut();
+          _currentUser = null;
+          return AuthResult(
+            success: false,
+            message:
+                'No estás registrado como docente.\nContacta al administrador.',
+          );
+        }
+
+        print('✅✅✅ LOGIN EXITOSO: ${teacher.nombre}');
+        _pendingEmail = null; // Limpiar
+        return AuthResult(
+          success: true,
+          message: 'Inicio de sesión exitoso',
+          teacher: teacher,
+        );
+      } catch (e) {
+        print('❌ Error al verificar con servidor: $e');
+        await _googleSignIn.signOut();
+        _currentUser = null;
+        return AuthResult(
+          success: false,
+          message:
+              'Error de conexión con el servidor.\n\nVerifica tu conexión a internet.',
+        );
+      }
     } catch (e) {
-      print('❌ ERROR EN GOOGLE SIGNIN: $e');
+      print('❌ ERROR EN SIGNIN: $e');
       await _googleSignIn.signOut();
       _currentUser = null;
       return AuthResult(
         success: false,
-        message: 'Error al iniciar sesión con Google: ${e.toString()}',
+        message: 'Error al iniciar sesión: ${e.toString()}',
       );
     }
   }
 
-  /// PASO 2: Verificar con el servidor (requiere conexión al servidor)
-  /// Debe llamarse después de signInWithGoogle()
-  Future<AuthResult> verifyTeacherWithServer() async {
-    print('🔷 [PASO 2] Verificando con servidor...');
+  /// Verificar si el servidor está accesible (detecta si necesita VPN)
+  Future<bool> _checkServerConnectivity() async {
+    try {
+      print('🔵 Probando conectividad a: ${ApiConfig.baseUrl}');
+      final response = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}/api/health'))
+          .timeout(const Duration(seconds: 5));
+      print('🟢 Servidor respondió: ${response.statusCode}');
+      return response.statusCode == 200;
+    } catch (e) {
+      print('🔴 Servidor no accesible: $e');
+      return false; // No hay acceso al servidor
+    }
+  }
 
-    if (_pendingEmail == null || _currentUser == null) {
+  /// Reintentar verificación después de activar VPN
+  Future<AuthResult> retryVerification() async {
+    if (_pendingEmail == null) {
       return AuthResult(
         success: false,
-        message: 'Error: Debes hacer Google Sign-In primero',
+        message: 'No hay sesión pendiente de verificación',
       );
     }
 
+    print('🔷 Reintentando verificación para: $_pendingEmail');
+
     try {
+      // Verificar conectividad nuevamente
+      final hasServerAccess = await _checkServerConnectivity();
+
+      if (!hasServerAccess) {
+        print('⚠️ Servidor aún no accesible');
+        return AuthResult(
+          success: false,
+          message: 'VPN_REQUIRED',
+          needsVpn: true,
+        );
+      }
+
+      print('✅ Servidor accesible - Verificando docente...');
+      // Verificar en el servidor
       final teacher = await _verifyTeacherInDatabase(_pendingEmail!);
 
       if (teacher == null) {
@@ -98,28 +174,19 @@ class AuthService {
       }
 
       print('✅✅✅ VERIFICACIÓN EXITOSA: ${teacher.nombre}');
-      _pendingEmail = null;
+      _pendingEmail = null; // Limpiar email pendiente
       return AuthResult(
         success: true,
         message: 'Inicio de sesión exitoso',
         teacher: teacher,
       );
     } catch (e) {
-      print('❌ Error al verificar con servidor: $e');
-      // NO cerramos la sesión de Google para permitir reintentar
+      print('❌ Error durante la verificación: $e');
       return AuthResult(
         success: false,
-        message:
-            'No se pudo conectar al servidor.\n\nVerifica:\n• Estás en la red de la universidad, o\n• Tienes VPN activa si estás en casa',
-        canRetry: true,
+        message: 'Error durante la verificación: ${e.toString()}',
       );
     }
-  }
-
-  /// Cancelar verificación pendiente y cerrar sesión
-  Future<void> cancelPendingVerification() async {
-    _pendingEmail = null;
-    await signOut();
   }
 
   /// Verificar si el correo es institucional
@@ -221,14 +288,12 @@ class AuthResult {
   final bool success;
   final String message;
   final Teacher? teacher;
-  final String? pendingEmail;
-  final bool canRetry;
+  final bool needsVpn;
 
   AuthResult({
     required this.success,
     required this.message,
     this.teacher,
-    this.pendingEmail,
-    this.canRetry = false,
+    this.needsVpn = false,
   });
 }
