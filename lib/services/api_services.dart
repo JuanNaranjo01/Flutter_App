@@ -273,6 +273,86 @@ class ApiService {
     return AttendanceResponse.error(
         'Error desconocido al registrar asistencia');
   }
+
+  /// Obtiene el historial de asistencias del docente
+  /// Retorna [AttendanceHistoryResponse] con la lista de registros
+  static Future<AttendanceHistoryResponse> getAttendanceHistory({
+    required String codigoDocente,
+    String? semestre,
+    String? corte,
+    String? materia,
+    int maxRetries = 2,
+  }) async {
+    int retries = 0;
+
+    while (retries <= maxRetries) {
+      try {
+        final requestBody = <String, dynamic>{
+          'codigo_docente': codigoDocente,
+        };
+
+        // Agregar filtros opcionales si están presentes
+        if (semestre != null && semestre != 'Todos') {
+          requestBody['semestre'] = semestre;
+        }
+        if (corte != null && corte != 'Todos') {
+          requestBody['corte'] = corte;
+        }
+        if (materia != null && materia != 'Todas') {
+          requestBody['materia'] = materia;
+        }
+
+        final response = await _httpClient
+            .post(
+              Uri.parse(
+                  '${ApiConfig.baseUrl}${ApiConfig.attendanceHistoryEndpoint}'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode(requestBody),
+            )
+            .timeout(
+              ApiConfig.connectionTimeout,
+              onTimeout: () => throw TimeoutException(
+                  'El servidor tardó demasiado en responder'),
+            );
+
+        final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+
+        if (response.statusCode == 200) {
+          return AttendanceHistoryResponse.fromJson(responseData);
+        } else {
+          return AttendanceHistoryResponse.error(
+            responseData['error'] ?? 'Error al obtener registros',
+          );
+        }
+      } on TimeoutException {
+        retries++;
+        if (retries > maxRetries) {
+          return AttendanceHistoryResponse.error(
+            'El servidor no responde. Verifica tu conexión.',
+          );
+        }
+      } on SocketException {
+        return AttendanceHistoryResponse.error(
+          'Error de conexión: Verifica que estés conectado a la red y que el servidor esté disponible.',
+        );
+      } on http.ClientException {
+        return AttendanceHistoryResponse.error(
+          'Error de red: No se puede establecer conexión.',
+        );
+      } on FormatException {
+        return AttendanceHistoryResponse.error(
+          'Error al procesar la respuesta del servidor.',
+        );
+      } catch (e) {
+        return AttendanceHistoryResponse.error(
+          'Error inesperado: ${e.toString()}',
+        );
+      }
+    }
+
+    return AttendanceHistoryResponse.error(
+        'Error al obtener historial de asistencias');
+  }
 }
 
 // Excepciones personalizadas

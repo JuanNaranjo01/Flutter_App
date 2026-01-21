@@ -3,6 +3,7 @@ import '../models/registered_face.dart';
 import '../models/attendance_record.dart';
 import '../models/teacher.dart';
 import '../models/student.dart';
+import '../services/api_services.dart';
 
 class DataProvider with ChangeNotifier {
   Teacher? _currentTeacher;
@@ -16,12 +17,17 @@ class DataProvider with ChangeNotifier {
     _currentTeacher = teacher;
     _isAuthenticated = true;
     notifyListeners();
+    // Cargar registros de asistencia al iniciar sesión
+    refreshAttendanceRecords();
   }
 
   /// Método de logout
   void logout() {
     _currentTeacher = null;
     _isAuthenticated = false;
+    _attendanceRecords = [];
+    _isLoadingAttendance = false;
+    _attendanceError = null;
     notifyListeners();
   }
 
@@ -67,177 +73,16 @@ class DataProvider with ChangeNotifier {
     ),
   ];
 
-  final List<AttendanceRecord> _attendanceRecords = [
-    // 2024-I - 1er Corte
-    AttendanceRecord(
-        fecha: '2024-01-15',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-01-15',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-01-15',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: false,
-        horasAsistidas: 0,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-01-22',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 3,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-01-22',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: false,
-        horasAsistidas: 0,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-01-22',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 3,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    // 2024-I - 2do Corte
-    AttendanceRecord(
-        fecha: '2024-03-10',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: false,
-        horasAsistidas: 0,
-        semestre: '2024-I',
-        corte: '2do Corte'),
-    AttendanceRecord(
-        fecha: '2024-03-10',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 2,
-        semestre: '2024-I',
-        corte: '2do Corte'),
-    AttendanceRecord(
-        fecha: '2024-03-10',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 2,
-        semestre: '2024-I',
-        corte: '2do Corte'),
-    // 2024-I - 3er Corte
-    AttendanceRecord(
-        fecha: '2024-05-12',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-I',
-        corte: '3er Corte'),
-    AttendanceRecord(
-        fecha: '2024-05-12',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-I',
-        corte: '3er Corte'),
-    AttendanceRecord(
-        fecha: '2024-05-12',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-I',
-        corte: '3er Corte'),
-    // 2024-II - 1er Corte
-    AttendanceRecord(
-        fecha: '2024-08-15',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-08-15',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-08-15',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: false,
-        horasAsistidas: 0,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-09-02',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: false,
-        horasAsistidas: 0,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-09-02',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 2,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-09-02',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 2,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-  ];
+  // Registros de asistencia (se cargan desde el backend)
+  List<AttendanceRecord> _attendanceRecords = [];
+  bool _isLoadingAttendance = false;
+  String? _attendanceError;
 
+  
   List<RegisteredFace> get registeredFaces => _registeredFaces;
   List<AttendanceRecord> get attendanceRecords => _attendanceRecords;
+  bool get isLoadingAttendance => _isLoadingAttendance;
+  String? get attendanceError => _attendanceError;
 
   // Estudiante actualmente seleccionado para registro de embeddings
   Student? _currentStudent;
@@ -258,6 +103,33 @@ class DataProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Refresca los registros de asistencia desde el backend
+  Future<void> refreshAttendanceRecords() async {
+    if (_currentTeacher == null) return;
+
+    _isLoadingAttendance = true;
+    _attendanceError = null;
+    notifyListeners();
+
+    try {
+      final response = await ApiService.getAttendanceHistory(
+        codigoDocente: _currentTeacher!.codigo,
+      );
+
+      if (response.success) {
+        _attendanceRecords = response.records;
+        _attendanceError = null;
+      } else {
+        _attendanceError = response.error ?? 'Error al cargar asistencias';
+      }
+    } catch (e) {
+      _attendanceError = 'Error al cargar asistencias: $e';
+    }
+
+    _isLoadingAttendance = false;
+    notifyListeners();
+  }
+
   // Métodos para gestión de estudiante en proceso de registro
   void setCurrentStudent(Student? student) {
     _currentStudent = student;
@@ -269,3 +141,4 @@ class DataProvider with ChangeNotifier {
     notifyListeners();
   }
 }
+

@@ -149,6 +149,17 @@ class _AttendanceRegistrationScreenState
   }
 
   void _showSuccessDialog(AttendanceData data) {
+    // Actualizar lista local
+    _registeredAttendances.add(data);
+
+    // Refrescar consultas automáticamente en background
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        final dataProvider = Provider.of<DataProvider>(context, listen: false);
+        dataProvider.refreshAttendanceRecords();
+      }
+    });
+
     showDialog(
       context: context,
       barrierDismissible: false,

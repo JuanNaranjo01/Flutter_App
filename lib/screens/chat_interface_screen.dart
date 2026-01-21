@@ -81,6 +81,80 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
       backgroundColor: const Color(0xFFF9FAFB),
       body: Consumer<DataProvider>(
         builder: (context, data, child) {
+          // Mostrar loading inicial
+          if (data.isLoadingAttendance && data.attendanceRecords.isEmpty) {
+            return CustomScrollView(
+              slivers: [
+                _buildAppBar(context, data),
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Cargando registros de asistencia...',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          // Mostrar error si hay y no hay datos
+          if (data.attendanceError != null && data.attendanceRecords.isEmpty) {
+            return CustomScrollView(
+              slivers: [
+                _buildAppBar(context, data),
+                SliverFillRemaining(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline,
+                              size: 64, color: Colors.red[300]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error al cargar asistencias',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            data.attendanceError!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: () => data.refreshAttendanceRecords(),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Reintentar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF9333EA),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
           // Obtener materias únicas
           final materias = data.attendanceRecords
               .map((r) => r.materia)
@@ -133,6 +207,26 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
               SliverAppBar(
                 expandedHeight: 140,
                 pinned: true,
+                actions: [
+                  IconButton(
+                    icon: data.isLoadingAttendance
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.refresh, color: Colors.white),
+                    onPressed: data.isLoadingAttendance
+                        ? null
+                        : () => data.refreshAttendanceRecords(),
+                    tooltip: 'Actualizar',
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 flexibleSpace: FlexibleSpaceBar(
                   background: Container(
                     decoration: const BoxDecoration(
@@ -588,6 +682,76 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context, DataProvider data) {
+    return SliverAppBar(
+      expandedHeight: 140,
+      pinned: true,
+      actions: [
+        IconButton(
+          icon: data.isLoadingAttendance
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.refresh, color: Colors.white),
+          onPressed:
+              data.isLoadingAttendance ? null : () => data.refreshAttendanceRecords(),
+          tooltip: 'Actualizar',
+        ),
+        const SizedBox(width: 8),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF9333EA), // purple-600
+                Color(0xFFA855F7), // purple-500
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Consulta de Asistencias',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Filtra y exporta registros por semestre, corte y materia',
+                    style: TextStyle(
+                      color: Color(0xFFE9D5FF),
+                      fontSize: 13,
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
