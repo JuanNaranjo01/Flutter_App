@@ -14,7 +14,8 @@ class ApiConfig {
 
   // Endpoints de reconocimiento y asistencia
   static const String recognizeAndMarkEndpoint = '$apiPath/recognize_mobile';
-  static const String attendanceHistoryEndpoint = '$apiPath/get_attendance_history';
+  static const String attendanceHistoryEndpoint =
+      '$apiPath/get_attendance_history';
 
   // Endpoints generales
   static const String facesEndpoint = '/faces';

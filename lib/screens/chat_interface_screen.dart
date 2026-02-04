@@ -18,6 +18,26 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
   String _selectedSemester = 'Todos';
   String _selectedCorte = 'Todos';
   String _selectedMateria = 'Todas';
+  bool _hasInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasInitialized = false;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refrescar solo la primera vez
+    if (!_hasInitialized) {
+      _hasInitialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final dataProvider = Provider.of<DataProvider>(context, listen: false);
+        dataProvider.refreshAttendanceRecords();
+      });
+    }
+  }
 
   Future<void> _exportToCSV(List<AttendanceRecord> records) async {
     try {
@@ -75,6 +95,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
     }
   }
 
+  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -702,8 +723,9 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                   ),
                 )
               : const Icon(Icons.refresh, color: Colors.white),
-          onPressed:
-              data.isLoadingAttendance ? null : () => data.refreshAttendanceRecords(),
+          onPressed: data.isLoadingAttendance
+              ? null
+              : () => data.refreshAttendanceRecords(),
           tooltip: 'Actualizar',
         ),
         const SizedBox(width: 8),

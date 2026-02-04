@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:camera/camera.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import '../services/api_services.dart';
 import '../models/attendance_response.dart';
+import '../providers/data_provider.dart';
 
 class AttendanceRegistrationScreen extends StatefulWidget {
   const AttendanceRegistrationScreen({super.key});
@@ -173,7 +175,8 @@ class _AttendanceRegistrationScreenState
                 color: Colors.green.shade50,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.check_circle, color: Colors.green.shade600, size: 32),
+              child: Icon(Icons.check_circle,
+                  color: Colors.green.shade600, size: 32),
             ),
             const SizedBox(width: 12),
             const Expanded(
@@ -278,7 +281,8 @@ class _AttendanceRegistrationScreenState
                 color: Colors.red.shade50,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.error_outline, color: Colors.red.shade600, size: 32),
+              child: Icon(Icons.error_outline,
+                  color: Colors.red.shade600, size: 32),
             ),
             const SizedBox(width: 12),
             const Expanded(
@@ -438,7 +442,8 @@ class _AttendanceRegistrationScreenState
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const CircularProgressIndicator(color: Colors.white),
+                                const CircularProgressIndicator(
+                                    color: Colors.white),
                                 const SizedBox(height: 16),
                                 Text(
                                   _statusMessage,
@@ -470,169 +475,179 @@ class _AttendanceRegistrationScreenState
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                  // Lista de asistencias registradas
-                  if (_registeredAttendances.isNotEmpty)
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 200),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Asistencias Registradas',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green.shade900,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade100,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    '${_registeredAttendances.length}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green.shade700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Flexible(
-                            child: ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: _registeredAttendances.length,
-                              itemBuilder: (context, index) {
-                                final attendance = _registeredAttendances[index];
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  elevation: 2,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    side: BorderSide(
-                                      color: Colors.green.shade200,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    leading: CircleAvatar(
-                                      backgroundColor: Colors.green.shade100,
-                                      child: Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green.shade700,
-                                      ),
-                                    ),
-                                    title: Text(
-                                      attendance.estudiante,
-                                      style: const TextStyle(
+                      // Lista de asistencias registradas
+                      if (_registeredAttendances.isNotEmpty)
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Asistencias Registradas',
+                                      style: TextStyle(
+                                        fontSize: 16,
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 15,
+                                        color: Colors.green.shade900,
                                       ),
                                     ),
-                                    subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Código: ${attendance.codigoEstudiante}',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey.shade600,
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade100,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        '${_registeredAttendances.length}',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green.shade700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Flexible(
+                                child: ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: _registeredAttendances.length,
+                                  itemBuilder: (context, index) {
+                                    final attendance =
+                                        _registeredAttendances[index];
+                                    return Card(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      elevation: 2,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        side: BorderSide(
+                                          color: Colors.green.shade200,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: ListTile(
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 16, vertical: 8),
+                                        leading: CircleAvatar(
+                                          backgroundColor:
+                                              Colors.green.shade100,
+                                          child: Icon(
+                                            Icons.check_circle,
+                                            color: Colors.green.shade700,
                                           ),
                                         ),
-                                        Text(
-                                          '${attendance.hora} - ${(attendance.confidence * 100).toStringAsFixed(1)}%',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade500,
+                                        title: Text(
+                                          attendance.estudiante,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                    trailing: Icon(
-                                      Icons.verified,
-                                      color: Colors.green.shade600,
-                                      size: 20,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Código: ${attendance.codigoEstudiante}',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                            Text(
+                                              '${attendance.hora} - ${(attendance.confidence * 100).toStringAsFixed(1)}%',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        trailing: Icon(
+                                          Icons.verified,
+                                          color: Colors.green.shade600,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-
-                  // Espaciado antes del botón
-                  const SizedBox(height: 16),
-
-                  // Botón de registro
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: (_isCapturing || _isProcessing || !_isCameraInitialized)
-                          ? null
-                          : _captureFramesAndRegister,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
                         ),
-                        elevation: 4,
-                        disabledBackgroundColor: Colors.grey.shade300,
-                      ),
-                      child: _isProcessing
-                          ? const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                SizedBox(width: 12),
-                                Text(
-                                  'Procesando...',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.check_circle, size: 24),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Registrar Asistencia',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+
+                      // Espaciado antes del botón
+                      const SizedBox(height: 16),
+
+                      // Botón de registro
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: (_isCapturing ||
+                                  _isProcessing ||
+                                  !_isCameraInitialized)
+                              ? null
+                              : _captureFramesAndRegister,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                    ),
-                  ),
+                            elevation: 4,
+                            disabledBackgroundColor: Colors.grey.shade300,
+                          ),
+                          child: _isProcessing
+                              ? const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text(
+                                      'Procesando...',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.check_circle, size: 24),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Registrar Asistencia',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

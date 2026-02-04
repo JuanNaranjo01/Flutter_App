@@ -78,7 +78,6 @@ class DataProvider with ChangeNotifier {
   bool _isLoadingAttendance = false;
   String? _attendanceError;
 
-  
   List<RegisteredFace> get registeredFaces => _registeredFaces;
   List<AttendanceRecord> get attendanceRecords => _attendanceRecords;
   bool get isLoadingAttendance => _isLoadingAttendance;
@@ -105,15 +104,20 @@ class DataProvider with ChangeNotifier {
 
   /// Refresca los registros de asistencia desde el backend
   Future<void> refreshAttendanceRecords() async {
-    if (_currentTeacher == null) return;
+    if (_currentTeacher == null) {
+      print('❌ refreshAttendanceRecords: _currentTeacher es null');
+      return;
+    }
 
+    print(
+        '🔄 Llamando getAttendanceHistory con email: ${_currentTeacher!.email}');
     _isLoadingAttendance = true;
     _attendanceError = null;
     notifyListeners();
 
     try {
       final response = await ApiService.getAttendanceHistory(
-        codigoDocente: _currentTeacher!.codigo,
+        emailDocente: _currentTeacher!.email,
       );
 
       if (response.success) {
@@ -141,4 +145,3 @@ class DataProvider with ChangeNotifier {
     notifyListeners();
   }
 }
-

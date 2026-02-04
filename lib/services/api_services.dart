@@ -5,6 +5,7 @@ import 'dart:async';
 import '../config/api_config.dart';
 import '../models/student.dart';
 import '../models/attendance_response.dart';
+import '../models/attendance_history_response.dart';
 
 class ApiService {
   // Cliente HTTP con timeouts configurados
@@ -277,7 +278,7 @@ class ApiService {
   /// Obtiene el historial de asistencias del docente
   /// Retorna [AttendanceHistoryResponse] con la lista de registros
   static Future<AttendanceHistoryResponse> getAttendanceHistory({
-    required String codigoDocente,
+    required String emailDocente,
     String? semestre,
     String? corte,
     String? materia,
@@ -288,7 +289,7 @@ class ApiService {
     while (retries <= maxRetries) {
       try {
         final requestBody = <String, dynamic>{
-          'codigo_docente': codigoDocente,
+          'email_docente': emailDocente,
         };
 
         // Agregar filtros opcionales si están presentes

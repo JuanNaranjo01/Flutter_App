@@ -33,15 +33,34 @@ class AttendanceRecord {
   }
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
+    // Mapeo desde backend (get_attendance_history)
+    if (json.containsKey('codigo_estudiante')) {
+      return AttendanceRecord(
+        fecha: json['fecha_registro'] ?? '',
+        codigo: json['codigo_estudiante'] ?? '',
+        nombre:
+            '${json['nombre_estudiante'] ?? ''} ${json['apellidos_estudiante'] ?? ''}'
+                .trim(),
+        materia: json['semestre'] ?? '',
+        asistio: json['estado'] == 'presente' || json['estado'] == 'tardanza',
+        horasAsistidas: json['estado'] == 'presente'
+            ? 2
+            : (json['estado'] == 'tardanza' ? 1 : 0),
+        semestre: json['semestre'] ?? 'N/A',
+        corte: json['corte']?.toString() ?? 'N/A',
+      );
+    }
+
+    // Mapeo desde formato antiguo
     return AttendanceRecord(
-      fecha: json['fecha'],
-      codigo: json['codigo'],
-      nombre: json['nombre'],
-      materia: json['materia'],
-      asistio: json['asistio'],
-      horasAsistidas: json['horasAsistidas'],
-      semestre: json['semestre'],
-      corte: json['corte'],
+      fecha: json['fecha'] ?? '',
+      codigo: json['codigo'] ?? '',
+      nombre: json['nombre'] ?? '',
+      materia: json['materia'] ?? '',
+      asistio: json['asistio'] ?? false,
+      horasAsistidas: json['horasAsistidas'] ?? 0,
+      semestre: json['semestre'] ?? '',
+      corte: json['corte'] ?? '',
     );
   }
 }
