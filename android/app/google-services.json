@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "827103064094-fs31ab6k9ilr3tpgk01pd47bjl88hf4t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.uceva.asistencia_guard",
+            "certificate_hash": "12a57d53868eaad9484941b34af45d8c0cb31b08"
+          }
+        },
+        {
           "client_id": "827103064094-r9qqbtvb452r81rb18lb7opr4g0s9t9g.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
