@@ -21,6 +21,10 @@ class AuthService {
 
   String? _pendingEmail;
 
+  // Variables globales para gestión de token de sesión
+  String? sessionToken;
+  Map<String, dynamic>? teacherData;
+
   /// Iniciar sesión con Google con detección automática de VPN
   Future<AuthResult> signInWithGoogle() async {
     print('🔷 Iniciando login con detección automática...');
@@ -226,6 +230,16 @@ class AuthService {
         // Si el docente existe, crear objeto Teacher
         if (data['success'] == true && data['teacher'] != null) {
           print('✅ Docente encontrado en la base de datos');
+          
+          // ✅ GUARDAR TOKEN Y DATOS DEL PROFESOR
+          sessionToken = data['session_token'];
+          teacherData = data['teacher'];
+          
+          if (sessionToken != null) {
+            print('✅ Token de sesión guardado: ${sessionToken!.substring(0, 10)}...');
+            print('✅ Token expira en: ${data['token_expires_in_hours']} horas');
+          }
+          
           return Teacher.fromJson(data['teacher']);
         } else {
           print(
@@ -261,10 +275,48 @@ class AuthService {
     }
   }
 
-  /// Cerrar sesión
+  /// Cerrar sesión y limpiar token de sesión
   Future<void> signOut() async {
+    await logoutTeacher();
     await _googleSignIn.signOut();
     _currentUser = null;
+  }
+
+  /// Método de logout para invalidar el token en el servidor
+  Future<void> logoutTeacher() async {
+    if (sessionToken == null) {
+      print('⚠️ No hay token de sesión para invalidar');
+      return;
+    }
+
+    try {
+      print('🔷 Invalidando token de sesión en el servidor...');
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/logout_teacher'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'session_token': sessionToken}),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('⚠️ Timeout al hacer logout - Limpiando sesión local de todos modos');
+          throw TimeoutException('Timeout en logout');
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Logout exitoso: ${data['message']}');
+      } else {
+        print('⚠️ Error en logout del servidor: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('⚠️ Error al hacer logout en servidor: $e');
+    } finally {
+      // Limpiar sesión local siempre
+      sessionToken = null;
+      teacherData = null;
+      print('✅ Sesión local limpiada');
+    }
   }
 
   /// Verificar si hay una sesión activa

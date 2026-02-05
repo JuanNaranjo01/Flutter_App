@@ -4,25 +4,32 @@ import '../models/attendance_record.dart';
 import '../models/teacher.dart';
 import '../models/student.dart';
 import '../services/api_services.dart';
+import '../services/auth_service.dart';
 
 class DataProvider with ChangeNotifier {
   Teacher? _currentTeacher;
   bool _isAuthenticated = false;
+  final AuthService _authService = AuthService();
 
   Teacher? get currentTeacher => _currentTeacher;
   bool get isAuthenticated => _isAuthenticated;
+  AuthService get authService => _authService;
 
   /// Método de login con objeto Teacher (usado por AuthService)
   void loginWithTeacher(Teacher teacher) {
     _currentTeacher = teacher;
     _isAuthenticated = true;
+    print('🔐 Login completado - Token: ${_authService.sessionToken?.substring(0, 10)}...');
     notifyListeners();
     // Cargar registros de asistencia al iniciar sesión
     refreshAttendanceRecords();
   }
 
   /// Método de logout
-  void logout() {
+  Future<void> logout() async {
+    // Limpiar token en el servidor y localmente
+    await _authService.logoutTeacher();
+    
     _currentTeacher = null;
     _isAuthenticated = false;
     _attendanceRecords = [];

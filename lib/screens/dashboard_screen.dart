@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/data_provider.dart';
-import '../services/auth_service.dart';
+
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -23,13 +23,9 @@ class DashboardScreen extends StatelessWidget {
               onPressed: () async {
                 final dataProvider =
                     Provider.of<DataProvider>(context, listen: false);
-                final authService = AuthService();
 
-                // Cerrar sesión de Google
-                await authService.signOut();
-
-                // Limpiar estado local
-                dataProvider.logout();
+                // Cerrar sesión de Google y limpiar token
+                await dataProvider.logout();
 
                 if (context.mounted) {
                   Navigator.of(context).pop();

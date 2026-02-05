@@ -191,9 +191,11 @@ class ApiService {
 
   /// Registra asistencia mediante reconocimiento facial
   /// [frames]: lista de 4 imágenes en formato base64 (data:image/jpeg;base64,...)
+  /// [sessionToken]: token de sesión del docente autenticado
   /// Retorna [AttendanceResponse] con los datos del registro
   static Future<AttendanceResponse> registrarAsistencia({
     required List<String> frames,
+    String? sessionToken,
     int maxRetries = 2,
   }) async {
     // Validar cantidad de frames
@@ -208,7 +210,14 @@ class ApiService {
       try {
         final requestBody = {
           'images': frames,
+          'device_id': 'flutter_app',
+          'session_token': sessionToken,
         };
+
+        print('📤 Enviando petición de reconocimiento con:');
+        print('   - Frames: ${frames.length}');
+        print('   - Device: flutter_app');
+        print('   - Session Token: ${sessionToken?.substring(0, 10) ?? "NULL"}...');
 
         final response = await _httpClient
             .post(

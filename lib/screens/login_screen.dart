@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
-import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,7 +10,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _authService = AuthService();
   bool _isLoading = false;
 
   @override
@@ -24,7 +22,8 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _authService.signInWithGoogle();
+      final dataProvider = Provider.of<DataProvider>(context, listen: false);
+      final result = await dataProvider.authService.signInWithGoogle();
 
       if (!mounted) return;
 
@@ -102,8 +101,9 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           TextButton(
             onPressed: () async {
+              final dataProvider = Provider.of<DataProvider>(context, listen: false);
               Navigator.of(context).pop();
-              await _authService.signOut();
+              await dataProvider.authService.signOut();
             },
             child: const Text('Cancelar'),
           ),
@@ -158,7 +158,8 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _authService.retryVerification();
+      final dataProvider = Provider.of<DataProvider>(context, listen: false);
+      final result = await dataProvider.authService.retryVerification();
 
       if (!mounted) return;
 

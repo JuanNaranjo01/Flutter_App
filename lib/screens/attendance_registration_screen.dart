@@ -115,14 +115,41 @@ class _AttendanceRegistrationScreenState
         _statusMessage = 'Analizando rostro...';
       });
 
+      // Obtener el token de sesión del proveedor de datos
+      final dataProvider = Provider.of<DataProvider>(context, listen: false);
+      final sessionToken = dataProvider.authService.sessionToken;
+
+      print('🔑 Token de sesión obtenido: ${sessionToken?.substring(0, 10) ?? "NULL"}...');
+      if (sessionToken == null) {
+        print('⚠️ WARNING: sessionToken es NULL - El servidor no recibirá el token');
+      }
+
       // Enviar al servidor
-      final response = await ApiService.registrarAsistencia(frames: frames);
+      final response = await ApiService.registrarAsistencia(
+        frames: frames,
+        sessionToken: sessionToken,
+      );
 
       if (!mounted) return;
 
       setState(() {
         _isProcessing = false;
       });
+
+      // Verificar si hay error de sesión expirada
+      if (!response.success && 
+          (response.error?.contains('Sin sesión') == true ||
+           response.error?.contains('sesión expirada') == true ||
+           response.error?.contains('sesión inválida') == true)) {
+        // Sesión expirada - redirigir al login
+        if (mounted) {
+          _showErrorDialog(
+            'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
+            redirectToLogin: true,
+          );
+        }
+        return;
+      }
 
       if (response.success && response.data != null) {
         _showSuccessDialog(response.data!);
@@ -268,9 +295,10 @@ class _AttendanceRegistrationScreenState
     );
   }
 
-  void _showErrorDialog(String errorMessage) {
+  void _showErrorDialog(String errorMessage, {bool redirectToLogin = false}) {
     showDialog(
       context: context,
+      barrierDismissible: !redirectToLogin,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
@@ -285,10 +313,10 @@ class _AttendanceRegistrationScreenState
                   color: Colors.red.shade600, size: 32),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Error',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                redirectToLogin ? 'Sesión Expirada' : 'Error',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -300,21 +328,43 @@ class _AttendanceRegistrationScreenState
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _captureFramesAndRegister();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3b82f6),
-              foregroundColor: Colors.white,
+          if (!redirectToLogin)
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
             ),
-            child: const Text('Reintentar'),
-          ),
+          if (!redirectToLogin)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _captureFramesAndRegister();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3b82f6),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Reintentar'),
+            ),
+          if (redirectToLogin)
+            ElevatedButton(
+              onPressed: () async {
+                final dataProvider = Provider.of<DataProvider>(context, listen: false);
+                await dataProvider.logout();
+                
+                if (context.mounted) {
+                  Navigator.of(context).pop(); // Cerrar diálogo
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/login',
+                    (Route<dynamic> route) => false,
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3b82f6),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Ir a Login'),
+            ),
         ],
       ),
     );
