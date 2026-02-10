@@ -6,6 +6,9 @@ import '../config/api_config.dart';
 import '../models/student.dart';
 import '../models/attendance_response.dart';
 import '../models/attendance_history_response.dart';
+import '../models/course.dart';
+import '../models/course_student.dart';
+import '../models/attendance_detail.dart';
 
 class ApiService {
   // Cliente HTTP con timeouts configurados
@@ -362,6 +365,264 @@ class ApiService {
 
     return AttendanceHistoryResponse.error(
         'Error al obtener historial de asistencias');
+  }
+
+  /// Obtiene los cursos que imparte el docente
+  static Future<List<Course>> getTeacherCourses(String sessionToken) async {
+    try {
+      print('📚 Solicitando cursos del docente...');
+      final response = await _httpClient.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/teacher/my_courses'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'session_token': sessionToken}),
+      ).timeout(const Duration(seconds: 10));
+
+      print('📡 Respuesta del servidor: ${response.statusCode}');
+      print('📦 Body de respuesta: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Data decodificada: $data');
+        
+        // El servidor envía 'cursos' en español, no 'courses'
+        final List<dynamic> coursesJson = data['cursos'] ?? data['courses'] ?? [];
+        print('📚 Número de cursos: ${coursesJson.length}');
+        print('🔍 Cursos JSON: $coursesJson');
+        
+        final courses = coursesJson.map((json) {
+          print('🎯 Parseando curso: $json');
+          return Course.fromJson(json);
+        }).toList();
+        
+        print('✨ Cursos parseados: ${courses.length}');
+        return courses;
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesión expirada o inválida');
+      } else {
+        throw Exception('Error al obtener cursos: ${response.statusCode}');
+      }
+    } on SocketException {
+      throw Exception('Error de conexión. Verifica tu conexión a internet.');
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado.');
+    } catch (e) {
+      print('❌ Error en getTeacherCourses: $e');
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+
+  /// Obtiene los estudiantes de un curso específico con sus estadísticas
+  static Future<List<CourseStudent>> getCourseStudents(
+    String sessionToken,
+    int courseId,
+  ) async {
+    try {
+      print('👥 Solicitando estudiantes del curso $courseId...');
+      final response = await _httpClient.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/teacher/course/$courseId/students'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'session_token': sessionToken}),
+      ).timeout(const Duration(seconds: 10));
+
+      print('📡 Respuesta estudiantes - Status: ${response.statusCode}');
+      print('📦 Body estudiantes: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Data estudiantes decodificada: $data');
+        
+        // El servidor puede enviar 'students', 'estudiantes' o 'alumnos'
+        final List<dynamic> studentsJson = data['students'] ?? 
+                                           data['estudiantes'] ?? 
+                                           data['alumnos'] ?? [];
+        print('👥 Número de estudiantes: ${studentsJson.length}');
+        print('🔍 Estudiantes JSON: $studentsJson');
+        
+        final students = studentsJson
+            .map((json) {
+              print('🎯 Parseando estudiante: $json');
+              return CourseStudent.fromJson(json);
+            })
+            .toList();
+        
+        print('✨ Estudiantes parseados: ${students.length}');
+        return students;
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesión expirada o inválida');
+      } else if (response.statusCode == 404) {
+        throw Exception('Curso no encontrado');
+      } else {
+        throw Exception('Error al obtener estudiantes: ${response.statusCode}');
+      }
+    } on SocketException {
+      throw Exception('Error de conexión. Verifica tu conexión a internet.');
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado.');
+    } catch (e) {
+      print('❌ Error en getCourseStudents: $e');
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+
+  /// Obtiene el historial completo de asistencia de un estudiante en un curso
+  static Future<Map<String, dynamic>> getStudentAttendance(
+    String sessionToken,
+    int courseId,
+    String studentCode,
+  ) async {
+    try {
+      print('📊 Solicitando asistencia del estudiante $studentCode en curso $courseId...');
+      final response = await _httpClient.post(
+        Uri.parse(
+            '${ApiConfig.baseUrl}/api/teacher/course/$courseId/student/$studentCode/attendance'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'session_token': sessionToken}),
+      ).timeout(const Duration(seconds: 10));
+
+      print('📡 Respuesta asistencia - Status: ${response.statusCode}');
+      print('📦 Body asistencia: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Data asistencia decodificada: $data');
+        
+        // Manejar diferentes formatos de respuesta del servidor
+        final attendanceData = data['attendance'] ?? 
+                               data['asistencias'] ?? 
+                               data['registros'] ?? [];
+        
+        print('📋 Registros de asistencia: ${attendanceData.runtimeType} - Length: ${attendanceData is List ? attendanceData.length : "N/A"}');
+        
+        // Asegurar que attendanceData sea una lista
+        final List<dynamic> attendanceList = attendanceData is List 
+            ? attendanceData 
+            : (attendanceData != null ? [attendanceData] : []);
+        
+        // Calcular resumen si no viene del servidor
+        final summary = data['summary'] ?? data['resumen'] ?? {};
+        final calculatedSummary = summary.isEmpty && attendanceList.isNotEmpty
+            ? _calculateSummary(attendanceList)
+            : summary;
+        
+        return {
+          'student': data['student'] ?? data['estudiante'] ?? {},
+          'course': data['course'] ?? data['curso'] ?? {},
+          'attendance': attendanceList
+              .map((json) => AttendanceDetail.fromJson(json))
+              .toList(),
+          'summary': calculatedSummary,
+        };
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesión expirada o inválida');
+      } else if (response.statusCode == 404) {
+        throw Exception('Estudiante o curso no encontrado');
+      } else {
+        throw Exception('Error al obtener asistencia: ${response.statusCode}');
+      }
+    } on SocketException {
+      throw Exception('Error de conexión. Verifica tu conexión a internet.');
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado.');
+    } catch (e) {
+      print('❌ Error en getStudentAttendance: $e');
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+
+  /// Obtiene solo las ausencias de un estudiante en un curso
+  static Future<Map<String, dynamic>> getStudentAbsences(
+    String sessionToken,
+    int courseId,
+    String studentCode,
+  ) async {
+    try {
+      print('📊 Solicitando ausencias del estudiante $studentCode en curso $courseId...');
+      final response = await _httpClient.post(
+        Uri.parse(
+            '${ApiConfig.baseUrl}/api/teacher/course/$courseId/student/$studentCode/absences'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'session_token': sessionToken}),
+      ).timeout(const Duration(seconds: 10));
+
+      print('📡 Respuesta ausencias - Status: ${response.statusCode}');
+      print('📦 Body ausencias: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Data ausencias decodificada: $data');
+        
+        // Manejar diferentes formatos de respuesta del servidor
+        final absencesData = data['absences'] ?? 
+                            data['ausencias'] ?? 
+                            data['faltas'] ?? [];
+        
+        print('📋 Registros de ausencias: ${absencesData.runtimeType} - Length: ${absencesData is List ? absencesData.length : "N/A"}');
+        
+        // Asegurar que absencesData sea una lista
+        final List<dynamic> absencesList = absencesData is List 
+            ? absencesData 
+            : (absencesData != null ? [absencesData] : []);
+        
+        // Calcular resumen si no viene del servidor
+        final summary = data['summary'] ?? data['resumen'] ?? {};
+        final calculatedSummary = summary.isEmpty && absencesList.isNotEmpty
+            ? _calculateSummary(absencesList)
+            : summary;
+        
+        return {
+          'student': data['student'] ?? data['estudiante'] ?? {},
+          'course': data['course'] ?? data['curso'] ?? {},
+          'absences': absencesList
+              .map((json) => AttendanceDetail.fromJson(json))
+              .toList(),
+          'summary': calculatedSummary,
+        };
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesión expirada o inválida');
+      } else if (response.statusCode == 404) {
+        throw Exception('Estudiante o curso no encontrado');
+      } else {
+        throw Exception('Error al obtener ausencias: ${response.statusCode}');
+      }
+    } on SocketException {
+      throw Exception('Error de conexión. Verifica tu conexión a internet.');
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado.');
+    } catch (e) {
+      print('❌ Error en getStudentAbsences: $e');
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+  /// Calcula el resumen de asistencias cuando el servidor no lo envía
+  static Map<String, dynamic> _calculateSummary(List<dynamic> attendanceList) {
+    int presentes = 0;
+    int ausentes = 0;
+    int tardanzas = 0;
+    
+    for (var record in attendanceList) {
+      final estado = (record['estado'] ?? record['status'] ?? '').toString().toLowerCase();
+      
+      if (estado == 'presente' || estado == 'present' || estado == 'asistio') {
+        presentes++;
+      } else if (estado == 'tardanza' || estado == 'tarde' || estado == 'late' || estado == 'retraso') {
+        tardanzas++;
+      } else if (estado == 'ausente' || estado == 'absent' || estado == 'falta') {
+        ausentes++;
+      }
+    }
+    
+    // Las tardanzas se consideran asistencias para el porcentaje (llegó aunque tarde)
+    final total = presentes + ausentes + tardanzas;
+    final asistenciasEfectivas = presentes + tardanzas;
+    final porcentajeAsistencia = total > 0 ? (asistenciasEfectivas / total * 100) : 0.0;
+    
+    return {
+      'presentes': presentes,
+      'ausentes': ausentes,
+      'tardanzas': tardanzas,
+      'total_clases': total,
+      'porcentaje_asistencia': porcentajeAsistencia,
+    };
   }
 }
 
