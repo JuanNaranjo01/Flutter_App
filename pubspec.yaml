@@ -9,30 +9,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
-  # UI Components
+  provider: ^6.1.1
+  http: ^1.1.0
   cupertino_icons: ^1.0.2
   google_fonts: ^6.1.0
-  
-  # Charts
+  google_sign_in: ^6.2.0
   fl_chart: ^0.66.0
-  
-  # Camera
   camera: ^0.10.5+5
   image_picker: ^1.0.5
-  
-  # State Management
-  provider: ^6.1.1
-  
-  # Storage
   shared_preferences: ^2.2.2
-  
-  # CSV Export
   csv: ^5.1.1
   path_provider: ^2.1.1
-  
-  # Utils
   intl: ^0.19.0
+  image: ^4.3.0
+  excel: ^4.0.6
 
 dev_dependencies:
   flutter_test:
@@ -41,3 +31,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  # Assets de la aplicación
+  assets:
+    - assets/images/

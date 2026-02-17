@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
+// import 'package:google_fonts/google_fonts.dart'; // Comentado temporalmente por error de red
+import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/face_registration_screen.dart';
-import 'screens/face_recognition_screen.dart';
+// import 'screens/face_recognition_screen.dart'; // Comentado - no usado actualmente
+import 'screens/attendance_registration_screen.dart';
 import 'screens/chat_interface_screen.dart';
-import 'screens/face_management_screen.dart';
 import 'providers/data_provider.dart';
 
 void main() {
@@ -28,13 +29,22 @@ class AsistenciaGuardApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF3b82f6),
+          seedColor: const Color(0xFF007f2f), // Verde corporativo UCEVA
           brightness: Brightness.light,
         ),
-        textTheme: GoogleFonts.interTextTheme(),
+        // textTheme: GoogleFonts.interTextTheme(), // Comentado temporalmente por error de red
         scaffoldBackgroundColor: const Color(0xFFF9FAFB),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF007f2f),
+          foregroundColor: Colors.white,
+        ),
       ),
-      home: const MainScreen(),
+      // Inicia directamente con el LoginScreen
+      initialRoute: '/login',
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/home': (context) => const MainScreen(),
+      },
     );
   }
 }
@@ -52,9 +62,9 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = const [
     DashboardScreen(),
     FaceRegistrationScreen(),
-    FaceRecognitionScreen(),
+    AttendanceRegistrationScreen(),
+    // FaceRecognitionScreen(), // Oculta temporalmente
     ChatInterfaceScreen(),
-    FaceManagementScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -71,28 +81,31 @@ class _MainScreenState extends State<MainScreen> {
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        selectedItemColor: const Color(0xFF3b82f6),
+        selectedItemColor: const Color(0xFF007f2f), // Verde corporativo UCEVA
         unselectedItemColor: Colors.grey,
         selectedFontSize: 12,
         unselectedFontSize: 12,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+            label: 'Inicio',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.add_a_photo),
             label: 'Registrar',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.face_retouching_natural),
-            label: 'Reconocer',
+            icon: Icon(Icons.check_circle_outline),
+            label: 'Asistencia',
           ),
+          // BottomNavigationBarItem(
+          //   icon: Icon(Icons.face_retouching_natural),
+          //   label: 'Reconocer',
+          // ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Asistencias',
+            icon: Icon(Icons.assignment),
+            label: 'Consultas',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Gestión'),
         ],
       ),
     );

@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "827103064094",
+    "project_id": "asistenciaguard-uceva",
+    "storage_bucket": "asistenciaguard-uceva.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:827103064094:android:53302b1b212eb3a5c8fe0f",
+        "android_client_info": {
+          "package_name": "com.uceva.asistencia_guard"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "827103064094-fs31ab6k9ilr3tpgk01pd47bjl88hf4t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.uceva.asistencia_guard",
+            "certificate_hash": "12a57d53868eaad9484941b34af45d8c0cb31b08"
+          }
+        },
+        {
+          "client_id": "827103064094-r9qqbtvb452r81rb18lb7opr4g0s9t9g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.uceva.asistencia_guard",
+            "certificate_hash": "598b179a701104b10f330b36111cf8b326e272c2"
+          }
+        },
+        {
+          "client_id": "827103064094-pd3fuh7ip54ump5lj19uq1gnb093d9qs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAovqV6Gq1k5X4JhRExX3xsWs_H7ZVY_Rs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "827103064094-pd3fuh7ip54ump5lj19uq1gnb093d9qs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:camera/camera.dart';
+import 'dart:async';
 import 'dart:io';
-import '../providers/data_provider.dart';
-import '../models/registered_face.dart';
+import '../services/api_services.dart';
+import '../services/video_processing_service.dart';
+import '../models/student.dart';
 
 class FaceRegistrationScreen extends StatefulWidget {
   const FaceRegistrationScreen({super.key});
@@ -13,283 +14,935 @@ class FaceRegistrationScreen extends StatefulWidget {
 }
 
 class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _codigoController = TextEditingController();
-  final _materiaController = TextEditingController();
-  final _carreraController = TextEditingController();
-  final _semestreController = TextEditingController();
 
-  File? _imageFile;
-  final ImagePicker _picker = ImagePicker();
+  // Estados del flujo
+  Student? _foundStudent;
+  List<String>? _capturedFrames; // Almacena los frames en base64
+  bool _isLoading = false;
+  bool _isProcessing = false;
+  bool _isCapturing = false;
+  String? _errorMessage;
 
-  Future<void> _takePicture() async {
+  // Cámara
+  CameraController? _cameraController;
+  bool _isCameraInitialized = false;
+  List<CameraDescription>? _cameras;
+
+  @override
+  void dispose() {
+    _codigoController.dispose();
+    _cameraController?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initializeCamera() async {
     try {
-      final XFile? photo = await _picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.front,
+      _cameras = await availableCameras();
+      if (_cameras == null || _cameras!.isEmpty) {
+        setState(() {
+          _errorMessage = 'No se encontraron cámaras disponibles';
+        });
+        return;
+      }
+
+      // Buscar cámara frontal
+      final frontCamera = _cameras!.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
+        orElse: () => _cameras!.first,
       );
 
-      if (photo != null) {
+      _cameraController = CameraController(
+        frontCamera,
+        ResolutionPreset.medium,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
+      );
+
+      await _cameraController!.initialize();
+
+      if (mounted) {
         setState(() {
-          _imageFile = File(photo.path);
+          _isCameraInitialized = true;
         });
       }
     } catch (e) {
-      // guard justo después del await / antes de usar context
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al capturar imagen: $e')),
-      );
-    }
-  }
-
-  Future<void> _pickImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-
-      if (image != null) {
+      if (mounted) {
         setState(() {
-          _imageFile = File(image.path);
+          _errorMessage = 'Error al inicializar la cámara: $e';
         });
       }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al seleccionar imagen: $e')),
-      );
     }
   }
 
-  void _registerFace() {
-    if (_formKey.currentState!.validate() && _imageFile != null) {
-      final newFace = RegisteredFace(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: _nameController.text,
-        email: _emailController.text,
-        codigo: _codigoController.text,
-        materia: _materiaController.text,
-        carrera: _carreraController.text,
-        semestre: _semestreController.text,
-        registrationDate: DateTime.now().toString().split(' ')[0],
-        confidence: 90 + (10 * (DateTime.now().millisecond / 1000)),
-        imageUrl: _imageFile!.path,
-      );
-
-      Provider.of<DataProvider>(context, listen: false)
-          .addRegisteredFace(newFace);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Rostro registrado exitosamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // Limpiar formulario
-      _formKey.currentState!.reset();
+  // PASO 1: Buscar estudiante
+  Future<void> _searchStudent() async {
+    if (_codigoController.text.isEmpty) {
       setState(() {
-        _imageFile = null;
+        _errorMessage = 'Por favor ingresa el código del estudiante';
       });
-      _nameController.clear();
-      _emailController.clear();
-      _codigoController.clear();
-      _materiaController.clear();
-      _carreraController.clear();
-      _semestreController.clear();
-    } else if (_imageFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, capture una foto')),
-      );
+      return;
     }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await ApiService.searchStudent(_codigoController.text);
+
+      if (!mounted) return;
+
+      if (response.found &&
+          response.students != null &&
+          response.students!.isNotEmpty) {
+        setState(() {
+          _foundStudent = response.students!.first;
+          _isLoading = false;
+        });
+        _showConfirmationDialog();
+      } else {
+        setState(() {
+          _errorMessage =
+              response.message ?? 'Estudiante no encontrado en BIENESTAR';
+          _isLoading = false;
+        });
+      }
+    } on SocketException catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    } on TimeoutException catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
+  }
+
+  // PASO 2: Mostrar diálogo de confirmación y luego inicializar cámara
+  void _showConfirmationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirmar Datos del Estudiante'),
+        content: _foundStudent != null
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Código: ${_foundStudent!.codigo}'),
+                  const SizedBox(height: 8),
+                  Text('Nombre: ${_foundStudent!.nombreCompleto}'),
+                  const SizedBox(height: 8),
+                  Text('Programa: ${_foundStudent!.programa}'),
+                  const SizedBox(height: 8),
+                  Text('Semestre: ${_foundStudent!.semestre}'),
+                  if (_foundStudent!.tieneEmbeddings) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '⚠️ Ya tiene ${_foundStudent!.numEmbeddings} fotos registradas',
+                        style: TextStyle(color: Colors.orange.shade900),
+                      ),
+                    ),
+                  ],
+                ],
+              )
+            : const SizedBox.shrink(),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resetForm();
+            },
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _initializeCamera();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF007f2f),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Continuar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // PASO 3: Capturar frames con cuenta regresiva
+  Future<void> _captureFrames() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      _showErrorDialog('La cámara no está lista');
+      return;
+    }
+
+    setState(() {
+      _isCapturing = true;
+    });
+
+    try {
+      // Capturar frames durante 3 segundos
+      final frames = await VideoProcessingService.captureFramesOverTime(
+        controller: _cameraController!,
+        durationSeconds: 3,
+        framesPerSecond: 3,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isCapturing = false;
+      });
+
+      // Extraer 4 frames distribuidos uniformemente
+      final base64Frames =
+          await VideoProcessingService.extractFramesFromImages(frames);
+
+      if (!mounted) return;
+
+      setState(() {
+        _capturedFrames = base64Frames;
+      });
+
+      // Automáticamente proceder a registrar embeddings
+      _registerEmbeddings();
+    } catch (e) {
+      setState(() {
+        _isCapturing = false;
+      });
+      _showErrorDialog('Error al capturar frames: $e');
+    }
+  }
+
+  // PASO 4: Registrar embeddings
+  Future<void> _registerEmbeddings() async {
+    final student = _foundStudent;
+    if (student == null || _capturedFrames == null) return;
+
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      // Registrar embeddings con los frames capturados
+      final response = await ApiService.registerStudentEmbeddings(
+        codigoEstudiante: student.codigo,
+        images: _capturedFrames!,
+        forceUpdate: student.tieneEmbeddings,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isProcessing = false;
+      });
+
+      // Mostrar resultado
+      _showResultDialog(response);
+    } on ConflictException catch (e) {
+      setState(() {
+        _isProcessing = false;
+      });
+      _showConflictDialog(e.message, e.existingEmbeddings);
+    } catch (e) {
+      setState(() {
+        _isProcessing = false;
+      });
+      _showErrorDialog(e.toString());
+    }
+  }
+
+  // PASO 5: Mostrar resultado
+  void _showResultDialog(StudentEmbeddingResponse response) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: response.success
+                    ? Colors.green.shade50
+                    : Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                response.success ? Icons.check_circle : Icons.error_outline,
+                color: response.success
+                    ? Colors.green.shade600
+                    : Colors.red.shade600,
+                size: 32,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                response.success
+                    ? '¡Registro Exitoso!'
+                    : 'Error en el Registro',
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(response.message),
+              if (response.student != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Fotos guardadas: ${response.student!.embeddingsSaved}/${response.student!.totalImages}',
+                        style: const TextStyle(
+                          color: Color(0xFF1B5E20),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (response.student!.embeddingsFailed > 0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Fotos fallidas: ${response.student!.embeddingsFailed}',
+                          style: TextStyle(
+                            color: Colors.orange.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+              if (response.failedImages != null &&
+                  response.failedImages!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Fotos que fallaron:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                ...response.failedImages!.map((f) => Padding(
+                      padding: const EdgeInsets.only(left: 8, top: 4),
+                      child: Text('• Foto ${f.imageNumber}: ${f.reason}'),
+                    )),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resetForm();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF007f2f),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text('Finalizar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showConflictDialog(String message, int existingCount) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ Embeddings Existentes'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message),
+            const SizedBox(height: 8),
+            Text('Embeddings registrados: $existingCount'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Intentar con force_update = true (será manejado por _registerEmbeddings)
+            },
+            child: const Text('Actualizar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('❌ Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resetForm();
+            },
+            child: const Text('Volver'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _resetForm() {
+    _cameraController?.dispose();
+    setState(() {
+      _foundStudent = null;
+      _capturedFrames = null;
+      _codigoController.clear();
+      _errorMessage = null;
+      _cameraController = null;
+      _isCameraInitialized = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Si hay estudiante confirmado, mostrar pantalla con cámara
+    if (_foundStudent != null) {
+      return _buildCameraScreen();
+    }
+    // Si no, mostrar pantalla de búsqueda
+    return _buildSearchScreen();
+  }
+
+  Widget _buildSearchScreen() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 120,
+                pinned: true,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF007f2f), Color(0xFF009938)],
+                      ),
+                    ),
+                    child: const SafeArea(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Registro de Embeddings',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Captura automática con video',
+                              style: TextStyle(
+                                color: Color(0xFFE8F5E9),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Card(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        elevation: 4,
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Buscar Estudiante',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextField(
+                                controller: _codigoController,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  hintText: 'Ingresa tu código de estudiante',
+                                  prefixIcon: const Icon(Icons.badge),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onSubmitted: (_) => _searchStudent(),
+                              ),
+                              const SizedBox(height: 16),
+                              if (_errorMessage != null)
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.error_outline,
+                                          color: Colors.red.shade900),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _errorMessage!,
+                                          style: TextStyle(
+                                              color: Colors.red.shade900),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              if (_errorMessage == null)
+                                const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isLoading ? null : _searchStudent,
+                                  icon: _isLoading
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white),
+                                        )
+                                      : const Icon(Icons.search),
+                                  label: Text(_isLoading
+                                      ? 'Buscando...'
+                                      : 'Buscar Estudiante'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF007f2f),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // Card de instrucciones
+                      Card(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        color: const Color(0xFFE8F5E9),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.info_outline,
+                                      size: 28, color: const Color(0xFF2E7D32)),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Instrucciones',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF1B5E20),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              _buildInstructionItem(
+                                number: '1',
+                                text: 'Ingresa el código del estudiante',
+                              ),
+                              const SizedBox(height: 12),
+                              _buildInstructionItem(
+                                number: '2',
+                                text: 'Verifica que sea el estudiante correcto',
+                              ),
+                              const SizedBox(height: 12),
+                              _buildInstructionItem(
+                                number: '3',
+                                text: 'Posiciona la cámara centrada al rostro',
+                              ),
+                              const SizedBox(height: 12),
+                              _buildInstructionItem(
+                                number: '4',
+                                text: 'Busca una buena iluminación',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Overlay de procesamiento
+          if (_isProcessing)
+            Container(
+              color: Colors.black.withValues(alpha: 0.7),
+              child: Center(
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Procesando imágenes...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Enviando al servidor',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstructionItem({
+    required String number,
+    required String text,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: const BoxDecoration(
+            color: Color(0xFF007f2f),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF1B5E20),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCameraScreen() {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF007f2f),
+        foregroundColor: Colors.white,
         elevation: 0,
-        title: const Column(
+        toolbarHeight: 80,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: _resetForm,
+        ),
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Registro de Rostro',
+            const Text(
+              'Registro de Embeddings',
               style: TextStyle(
-                color: Colors.black,
                 fontSize: 20,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
+            const SizedBox(height: 4),
             Text(
-              'Captura y registra un nuevo estudiante',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
+              _foundStudent?.nombreCompleto ?? '',
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white,
               ),
             ),
           ],
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Vista de cámara/imagen
-              Container(
-                height: 300,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: _imageFile != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(_imageFile!, fit: BoxFit.cover),
-                      )
-                    : const Center(
-                        child: Icon(Icons.person,
-                            size: 100, color: Colors.white54),
+      body: Column(
+        children: [
+          // Vista de cámara
+          Expanded(
+            flex: 3,
+            child: Container(
+              color: Colors.black,
+              child: _isCameraInitialized
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CameraPreview(_cameraController!),
+                        // Overlay con guía facial
+                        Center(
+                          child: Container(
+                            width: 280,
+                            height: 360,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: _isCapturing
+                                    ? Colors.greenAccent
+                                    : Colors.white.withValues(alpha: 0.7),
+                                width: 3,
+                              ),
+                              borderRadius: BorderRadius.circular(180),
+                            ),
+                          ),
+                        ),
+                        // Indicador de captura
+                        if (_isCapturing)
+                          Positioned(
+                            top: 40,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.greenAccent,
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                child: const Text(
+                                  'CAPTURANDO...',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    )
+                  : const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(color: Colors.white),
+                          SizedBox(height: 16),
+                          Text(
+                            'Inicializando cámara...',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
                       ),
-              ),
-              const SizedBox(height: 16),
+                    ),
+            ),
+          ),
 
-              // Botones de captura
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _takePicture,
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Capturar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3b82f6),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _pickImage,
-                      icon: const Icon(Icons.photo_library),
-                      label: const Text('Galería'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10b981),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
+          // Panel de control
+          Expanded(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-
-              // Formulario
-              _buildTextField(
-                controller: _nameController,
-                label: 'Nombre Completo',
-                icon: Icons.person,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _codigoController,
-                label: 'Código Estudiante',
-                icon: Icons.badge,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _emailController,
-                label: 'Email',
-                icon: Icons.email,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _materiaController,
-                label: 'Materia',
-                icon: Icons.book,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _carreraController,
-                label: 'Carrera',
-                icon: Icons.school,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _semestreController,
-                label: 'Semestre',
-                icon: Icons.calendar_today,
-              ),
-              const SizedBox(height: 24),
-
-              // Botón de registro
-              ElevatedButton(
-                onPressed: _registerFace,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3b82f6),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Info del estudiante
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          _foundStudent?.codigo ?? '',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1B5E20),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _foundStudent?.programa ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF2E7D32),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Registrar Rostro',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
+                  const SizedBox(height: 12),
+
+                  // Instrucciones
+                  if (!_isCapturing && !_isProcessing)
+                    Text(
+                      'Posiciona tu rostro dentro del óvalo',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  if (!_isCapturing && !_isProcessing)
+                    const SizedBox(height: 12),
+
+                  // Botón de captura
+                  if (_isProcessing)
+                    const Column(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 12),
+                        Text('Procesando y enviando al servidor...'),
+                      ],
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: _isCameraInitialized && !_isCapturing
+                            ? _captureFrames
+                            : null,
+                        icon: Icon(
+                          _isCapturing ? Icons.check_circle : Icons.camera_alt,
+                          size: 28,
+                        ),
+                        label: Text(
+                          _isCapturing ? 'Capturando...' : 'Registrar Rostro',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isCapturing
+                              ? Colors.green
+                              : const Color(0xFF007f2f),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 4,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Por favor, ingrese $label';
-        }
-        return null;
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _codigoController.dispose();
-    _materiaController.dispose();
-    _carreraController.dispose();
-    _semestreController.dispose();
-    super.dispose();
   }
 }

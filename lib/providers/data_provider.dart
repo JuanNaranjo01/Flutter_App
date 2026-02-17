@@ -1,8 +1,43 @@
 import 'package:flutter/foundation.dart';
 import '../models/registered_face.dart';
 import '../models/attendance_record.dart';
+import '../models/teacher.dart';
+import '../models/student.dart';
+import '../services/api_services.dart';
+import '../services/auth_service.dart';
 
 class DataProvider with ChangeNotifier {
+  Teacher? _currentTeacher;
+  bool _isAuthenticated = false;
+  final AuthService _authService = AuthService();
+
+  Teacher? get currentTeacher => _currentTeacher;
+  bool get isAuthenticated => _isAuthenticated;
+  AuthService get authService => _authService;
+
+  /// Método de login con objeto Teacher (usado por AuthService)
+  void loginWithTeacher(Teacher teacher) {
+    _currentTeacher = teacher;
+    _isAuthenticated = true;
+    print('🔐 Login completado - Token: ${_authService.sessionToken?.substring(0, 10)}...');
+    notifyListeners();
+    // Cargar registros de asistencia al iniciar sesión
+    refreshAttendanceRecords();
+  }
+
+  /// Método de logout
+  Future<void> logout() async {
+    // Limpiar token en el servidor y localmente
+    await _authService.logoutTeacher();
+    
+    _currentTeacher = null;
+    _isAuthenticated = false;
+    _attendanceRecords = [];
+    _isLoadingAttendance = false;
+    _attendanceError = null;
+    notifyListeners();
+  }
+
   final List<RegisteredFace> _registeredFaces = [
     RegisteredFace(
       id: '1',
@@ -45,177 +80,19 @@ class DataProvider with ChangeNotifier {
     ),
   ];
 
-  final List<AttendanceRecord> _attendanceRecords = [
-    // 2024-I - 1er Corte
-    AttendanceRecord(
-        fecha: '2024-01-15',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-01-15',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-01-15',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: false,
-        horasAsistidas: 0,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-01-22',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 3,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-01-22',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: false,
-        horasAsistidas: 0,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-01-22',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 3,
-        semestre: '2024-I',
-        corte: '1er Corte'),
-    // 2024-I - 2do Corte
-    AttendanceRecord(
-        fecha: '2024-03-10',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: false,
-        horasAsistidas: 0,
-        semestre: '2024-I',
-        corte: '2do Corte'),
-    AttendanceRecord(
-        fecha: '2024-03-10',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 2,
-        semestre: '2024-I',
-        corte: '2do Corte'),
-    AttendanceRecord(
-        fecha: '2024-03-10',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 2,
-        semestre: '2024-I',
-        corte: '2do Corte'),
-    // 2024-I - 3er Corte
-    AttendanceRecord(
-        fecha: '2024-05-12',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-I',
-        corte: '3er Corte'),
-    AttendanceRecord(
-        fecha: '2024-05-12',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-I',
-        corte: '3er Corte'),
-    AttendanceRecord(
-        fecha: '2024-05-12',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-I',
-        corte: '3er Corte'),
-    // 2024-II - 1er Corte
-    AttendanceRecord(
-        fecha: '2024-08-15',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-08-15',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 4,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-08-15',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: false,
-        horasAsistidas: 0,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-09-02',
-        codigo: 'EST001234',
-        nombre: 'María González López',
-        materia: 'Programación Orientada a Objetos',
-        asistio: false,
-        horasAsistidas: 0,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-09-02',
-        codigo: 'EST001567',
-        nombre: 'Carlos Ramírez Torres',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 2,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-    AttendanceRecord(
-        fecha: '2024-09-02',
-        codigo: 'EST001890',
-        nombre: 'Ana Patricia Morales',
-        materia: 'Programación Orientada a Objetos',
-        asistio: true,
-        horasAsistidas: 2,
-        semestre: '2024-II',
-        corte: '1er Corte'),
-  ];
+  // Registros de asistencia (se cargan desde el backend)
+  List<AttendanceRecord> _attendanceRecords = [];
+  bool _isLoadingAttendance = false;
+  String? _attendanceError;
 
   List<RegisteredFace> get registeredFaces => _registeredFaces;
   List<AttendanceRecord> get attendanceRecords => _attendanceRecords;
+  bool get isLoadingAttendance => _isLoadingAttendance;
+  String? get attendanceError => _attendanceError;
+
+  // Estudiante actualmente seleccionado para registro de embeddings
+  Student? _currentStudent;
+  Student? get currentStudent => _currentStudent;
 
   void addRegisteredFace(RegisteredFace face) {
     _registeredFaces.add(face);
@@ -229,6 +106,49 @@ class DataProvider with ChangeNotifier {
 
   void addAttendanceRecord(AttendanceRecord record) {
     _attendanceRecords.add(record);
+    notifyListeners();
+  }
+
+  /// Refresca los registros de asistencia desde el backend
+  Future<void> refreshAttendanceRecords() async {
+    if (_currentTeacher == null) {
+      print('❌ refreshAttendanceRecords: _currentTeacher es null');
+      return;
+    }
+
+    print(
+        '🔄 Llamando getAttendanceHistory con email: ${_currentTeacher!.email}');
+    _isLoadingAttendance = true;
+    _attendanceError = null;
+    notifyListeners();
+
+    try {
+      final response = await ApiService.getAttendanceHistory(
+        emailDocente: _currentTeacher!.email,
+      );
+
+      if (response.success) {
+        _attendanceRecords = response.records;
+        _attendanceError = null;
+      } else {
+        _attendanceError = response.error ?? 'Error al cargar asistencias';
+      }
+    } catch (e) {
+      _attendanceError = 'Error al cargar asistencias: $e';
+    }
+
+    _isLoadingAttendance = false;
+    notifyListeners();
+  }
+
+  // Métodos para gestión de estudiante en proceso de registro
+  void setCurrentStudent(Student? student) {
+    _currentStudent = student;
+    notifyListeners();
+  }
+
+  void clearCurrentStudent() {
+    _currentStudent = null;
     notifyListeners();
   }
 }

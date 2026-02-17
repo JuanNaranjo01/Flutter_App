@@ -179,9 +179,9 @@ class _FaceManagementScreenState extends State<FaceManagementScreen>
         ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: const Color(0xFF3b82f6),
+          labelColor: const Color(0xFF007f2f),
           unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xFF3b82f6),
+          indicatorColor: const Color(0xFF007f2f),
           tabs: [
             Tab(
               icon: const Icon(Icons.people),
@@ -285,7 +285,7 @@ class _FaceManagementScreenState extends State<FaceManagementScreen>
             child: SingleChildScrollView(
               child: DataTable(
                 headingRowColor:
-                    const WidgetStatePropertyAll(Color(0xFFF9FAFB)),
+                    WidgetStateProperty.all(const Color(0xFFF9FAFB)),
                 columns: const [
                   DataColumn(label: Text('Foto')),
                   DataColumn(label: Text('Nombre')),
@@ -415,7 +415,7 @@ class _FaceManagementScreenState extends State<FaceManagementScreen>
             child: SingleChildScrollView(
               child: DataTable(
                 headingRowColor:
-                    const WidgetStatePropertyAll(Color(0xFFF9FAFB)),
+                    WidgetStateProperty.all(const Color(0xFFF9FAFB)),
                 columns: const [
                   DataColumn(label: Text('Fecha')),
                   DataColumn(label: Text('Código')),

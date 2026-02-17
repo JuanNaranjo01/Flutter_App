@@ -3,38 +3,50 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/data_provider.dart';
 
+
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cerrar Sesión'),
+          content: const Text('¿Está seguro que desea cerrar sesión?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final dataProvider =
+                    Provider.of<DataProvider>(context, listen: false);
+
+                // Cerrar sesión de Google y limpiar token
+                await dataProvider.logout();
+
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/login', (Route<dynamic> route) => false);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red, foregroundColor: Colors.white),
+              child: const Text('Cerrar Sesión'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Panel de Control',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              'Sistema de Control de Asistencias',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
       body: Consumer<DataProvider>(
         builder: (context, data, child) {
           final totalStudents = data.registeredFaces.length;
@@ -45,495 +57,588 @@ class DashboardScreen extends StatelessWidget {
               ? ((presentRecords / totalRecords) * 100).round()
               : 0;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Tarjetas de estadísticas
-                _buildStatsCards(totalStudents, attendanceRate, presentRecords),
-                const SizedBox(height: 20),
+          return CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 210,
+                pinned: true,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF007f2f), // Verde corporativo UCEVA
+                          Color(0xFF009938),
+                        ],
+                      ),
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 70, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(Icons.emoji_events,
+                                      color: Colors.white, size: 26),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text('Bienvenido,',
+                                    style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w400)),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              data.currentTeacher?.nombre ?? 'Docente',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.2,
+                                  letterSpacing: 0.2),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            if (data.currentTeacher?.dedicacion != null &&
+                                data.currentTeacher!.dedicacion!.isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  data.currentTeacher!.dedicacion!,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: IconButton(
+                      icon: const Icon(Icons.logout, size: 24),
+                      onPressed: () => _showLogoutDialog(context),
+                      tooltip: 'Cerrar Sesión',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.15),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: LayoutBuilder(builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 700;
 
-                // Gráficas
-                _buildCharts(context, data),
-                const SizedBox(height: 20),
+                    Widget statsSection = isWide
+                        ? Row(
+                            children: [
+                              Expanded(
+                                child: _buildGradientStatCard(
+                                  title: 'Estudiantes Registrados',
+                                  value: totalStudents.toString(),
+                                  icon: Icons.people,
+                                  gradientColors: const [
+                                    Color(0xFF007f2f),
+                                    Color(0xFF005a21)
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildGradientStatCard(
+                                  title: 'Tasa de Asistencia',
+                                  value: '$attendanceRate%',
+                                  icon: Icons.trending_up,
+                                  gradientColors: const [
+                                    Color(0xFF007f2f),
+                                    Color(0xFF005a21)
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildGradientStatCard(
+                                  title: 'Total Asistencias',
+                                  value: presentRecords.toString(),
+                                  icon: Icons.check_circle,
+                                  gradientColors: const [
+                                    Color(0xFF007f2f),
+                                    Color(0xFF005a21)
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              _buildGradientStatCard(
+                                title: 'Estudiantes Registrados',
+                                value: totalStudents.toString(),
+                                icon: Icons.people,
+                                gradientColors: const [
+                                  Color(0xFF007f2f),
+                                  Color(0xFF005a21)
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              _buildGradientStatCard(
+                                title: 'Tasa de Asistencia',
+                                value: '$attendanceRate%',
+                                icon: Icons.trending_up,
+                                gradientColors: const [
+                                  Color(0xFF007f2f),
+                                  Color(0xFF005a21)
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              _buildGradientStatCard(
+                                title: 'Total Asistencias',
+                                value: presentRecords.toString(),
+                                icon: Icons.check_circle,
+                                gradientColors: const [
+                                  Color(0xFF007f2f),
+                                  Color(0xFF005a21)
+                                ],
+                              ),
+                            ],
+                          );
 
-                // Actividad reciente y rostros
-                _buildBottomSection(data),
-              ],
-            ),
+                    Widget chart = _buildTrendChart(data);
+
+                    Widget activityFaces = isWide
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                  flex: 2, child: _buildActivityCard(data)),
+                              const SizedBox(width: 12),
+                              Expanded(flex: 1, child: _buildFacesCard(data)),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              _buildActivityCard(data),
+                              const SizedBox(height: 12),
+                              _buildFacesCard(data),
+                            ],
+                          );
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        statsSection,
+                        const SizedBox(height: 16),
+                        chart,
+                        const SizedBox(height: 16),
+                        activityFaces,
+                      ],
+                    );
+                  }),
+                ),
+              ),
+            ],
           );
         },
       ),
     );
   }
 
-  Widget _buildStatsCards(
-      int totalStudents, int attendanceRate, int totalAttendances) {
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            title: 'Estudiantes',
-            value: totalStudents.toString(),
-            icon: Icons.people,
-            color: const Color(0xFF3b82f6),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            title: 'Tasa',
-            value: '$attendanceRate%',
-            icon: Icons.trending_up,
-            color: const Color(0xFF10b981),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            title: 'Asistencias',
-            value: totalAttendances.toString(),
-            icon: Icons.check_circle,
-            color: const Color(0xFF8b5cf6),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCharts(BuildContext context, DataProvider data) {
-    return Column(
-      children: [
-        // Fila 1: Asistencia por Estudiante y Distribución
-        Row(
-          children: [
-            Expanded(
-              child: _ChartCard(
-                title: 'Asistencia por Estudiante',
-                child: _buildBarChart(data),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ChartCard(
-                title: 'Distribución General',
-                child: _buildPieChart(data),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Fila 2: Tendencia y Por Periodo
-        Row(
-          children: [
-            Expanded(
-              child: _ChartCard(
-                title: 'Tendencia',
-                child: _buildLineChart(data),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ChartCard(
-                title: 'Por Periodo',
-                child: _buildGroupedBarChart(data),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBarChart(DataProvider data) {
-    final studentData = data.registeredFaces.map((face) {
-      final records =
-          data.attendanceRecords.where((r) => r.codigo == face.codigo);
-      final present = records.where((r) => r.asistio).length;
-      final total = records.length;
-      final percentage = total > 0 ? (present / total) * 100 : 0;
-      return percentage;
-    }).toList();
-
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: 100,
-        barGroups: List.generate(
-          studentData.length,
-          (index) => BarChartGroupData(
-            x: index,
-            barRods: [
-              BarChartRodData(
-                toY: studentData[index].toDouble(),
-                color: const Color(0xFF3b82f6),
-                width: 16,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ],
-          ),
-        ),
-        titlesData: FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                if (value.toInt() < data.registeredFaces.length) {
-                  final name =
-                      data.registeredFaces[value.toInt()].name.split(' ')[0];
-                  return Text(name, style: const TextStyle(fontSize: 10));
-                }
-                return const Text('');
-              },
-            ),
-          ),
-          leftTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
+  Widget _buildGradientStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required List<Color> gradientColors,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+            colors: gradientColors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+              color: gradientColors[0].withAlpha((0.25 * 255).round()),
+              blurRadius: 10,
+              offset: const Offset(0, 6))
+        ],
       ),
-    );
-  }
-
-  Widget _buildPieChart(DataProvider data) {
-    final present = data.attendanceRecords.where((r) => r.asistio).length;
-    final absent = data.attendanceRecords.length - present;
-
-    return PieChart(
-      PieChartData(
-        sections: [
-          PieChartSectionData(
-            value: present.toDouble(),
-            title: '$present',
-            color: const Color(0xFF10b981),
-            radius: 50,
-            titleStyle: const TextStyle(
-                fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+      child: Row(
+        children: [
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title,
+                  style: TextStyle(
+                      color: Colors.white.withAlpha((0.95 * 255).round()),
+                      fontSize: 13)),
+              const SizedBox(height: 8),
+              Text(value,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold)),
+            ]),
           ),
-          PieChartSectionData(
-            value: absent.toDouble(),
-            title: '$absent',
-            color: const Color(0xFFef4444),
-            radius: 50,
-            titleStyle: const TextStyle(
-                fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+                color: Colors.white.withAlpha((0.18 * 255).round()),
+                borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: Colors.white, size: 26),
           ),
         ],
-        sectionsSpace: 2,
-        centerSpaceRadius: 30,
       ),
     );
   }
 
-  Widget _buildLineChart(DataProvider data) {
-    final dateMap = <String, int>{};
+  Widget _buildTrendChart(DataProvider data) {
+    final dateMap = <String, Map<String, int>>{};
     for (var record in data.attendanceRecords) {
-      if (record.asistio) {
-        dateMap[record.fecha] = (dateMap[record.fecha] ?? 0) + 1;
+      if (!dateMap.containsKey(record.fecha)) {
+        dateMap[record.fecha] = {'asistencias': 0, 'total': 0};
       }
+      if (record.asistio) {
+        dateMap[record.fecha]!['asistencias'] =
+            dateMap[record.fecha]!['asistencias']! + 1;
+      }
+      dateMap[record.fecha]!['total'] = dateMap[record.fecha]!['total']! + 1;
     }
 
     final sortedDates = dateMap.keys.toList()..sort();
-    final spots = sortedDates.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), dateMap[entry.value]!.toDouble());
-    }).toList();
-
-    if (spots.isEmpty) {
-      return const Center(child: Text('No hay datos'));
+    final spots = <FlSpot>[];
+    final totalSpots = <FlSpot>[];
+    for (var i = 0; i < sortedDates.length; i++) {
+      final date = sortedDates[i];
+      spots
+          .add(FlSpot(i.toDouble(), dateMap[date]!['asistencias']!.toDouble()));
+      totalSpots.add(FlSpot(i.toDouble(), dateMap[date]!['total']!.toDouble()));
     }
 
-    return LineChart(
-      LineChartData(
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            color: const Color(0xFF8b5cf6),
-            barWidth: 3,
-            dotData: const FlDotData(show: false),
-          ),
-        ],
-        titlesData: const FlTitlesData(show: false),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-      ),
-    );
-  }
-
-  Widget _buildGroupedBarChart(DataProvider data) {
-    final periodMap = <String, Map<String, int>>{};
-
-    for (var record in data.attendanceRecords) {
-      if (!periodMap.containsKey(record.semestre)) {
-        periodMap[record.semestre] = {
-          '1er Corte': 0,
-          '2do Corte': 0,
-          '3er Corte': 0
-        };
-      }
-      if (record.asistio) {
-        periodMap[record.semestre]![record.corte] =
-            (periodMap[record.semestre]![record.corte] ?? 0) + 1;
-      }
-    }
-
-    final periods = periodMap.keys.toList()..sort();
-
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        barGroups: List.generate(
-          periods.length,
-          (index) {
-            final period = periods[index];
-            final data = periodMap[period]!;
-            return BarChartGroupData(
-              x: index,
-              barRods: [
-                BarChartRodData(
-                    toY: data['1er Corte']!.toDouble(),
-                    color: const Color(0xFF3b82f6),
-                    width: 8),
-                BarChartRodData(
-                    toY: data['2do Corte']!.toDouble(),
-                    color: const Color(0xFF10b981),
-                    width: 8),
-                BarChartRodData(
-                    toY: data['3er Corte']!.toDouble(),
-                    color: const Color(0xFFf59e0b),
-                    width: 8),
-              ],
-            );
-          },
-        ),
-        titlesData: const FlTitlesData(show: false),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-      ),
-    );
-  }
-
-  Widget _buildBottomSection(DataProvider data) {
-    final recentActivity = data.attendanceRecords.reversed.take(5).toList();
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.access_time, size: 20),
-                    SizedBox(width: 8),
-                    Text('Actividad Reciente',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ...recentActivity.map((record) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: record.asistio ? Colors.green : Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(record.nombre,
-                                    style: const TextStyle(fontSize: 12)),
-                                Text(record.materia,
-                                    style: const TextStyle(
-                                        fontSize: 10, color: Colors.grey)),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: record.asistio
-                                  ? Colors.green.shade50
-                                  : Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              record.asistio ? 'Asistió' : 'Faltó',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: record.asistio
-                                    ? Colors.green.shade700
-                                    : Colors.red.shade700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.people, size: 20),
-                    SizedBox(width: 8),
-                    Text('Rostros Registrados',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ...data.registeredFaces.map((face) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundImage: NetworkImage(face.imageUrl),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(face.name,
-                                    style: const TextStyle(fontSize: 12)),
-                                Text(face.codigo,
-                                    style: const TextStyle(
-                                        fontSize: 10, color: Colors.grey)),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            '${face.confidence.toStringAsFixed(1)}%',
-                            style: const TextStyle(
-                                fontSize: 10, color: Colors.green),
-                          ),
-                        ],
-                      ),
-                    )),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withAlpha((0.1 * 255).round()),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withAlpha((0.05 * 255).round()),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withAlpha((0.1 * 255).round()),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 24),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF007f2f), Color(0xFF005a21)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.trending_up,
+                    color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text('Tendencia de Asistencias',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          Text(value,
-              style:
-                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          SizedBox(
+            height: 200,
+            child: LineChart(
+              LineChartData(
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: true,
+                    color: const Color(0xFF3B82F6),
+                    barWidth: 3,
+                    dotData: const FlDotData(show: true),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: const Color(0xFF3B82F6)
+                          .withAlpha((0.08 * 255).round()),
+                    ),
+                  ),
+                  LineChartBarData(
+                    spots: totalSpots,
+                    isCurved: true,
+                    color: const Color(0xFF94A3B8),
+                    barWidth: 2,
+                    dashArray: [5, 5],
+                    dotData: const FlDotData(show: true),
+                  ),
+                ],
+                titlesData: FlTitlesData(
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: true, reservedSize: 36),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      getTitlesWidget: (value, meta) {
+                        if (value.toInt() >= 0 &&
+                            value.toInt() < sortedDates.length) {
+                          final date = sortedDates[value.toInt()];
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(date.substring(5),
+                                style: const TextStyle(fontSize: 10)),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (v) => FlLine(
+                    color: Colors.grey.withAlpha((0.16 * 255).round()),
+                    strokeWidth: 1,
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
-}
 
-class _ChartCard extends StatelessWidget {
-  final String title;
-  final Widget child;
-
-  const _ChartCard({required this.title, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildActivityCard(DataProvider data) {
+    final recentActivity = data.attendanceRecords.reversed.take(7).toList();
     return Container(
-      height: 200,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style:
-                  const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          Expanded(child: child),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha((0.05 * 255).round()),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFF97316), Color(0xFFEA580C)],
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child:
+                  const Icon(Icons.access_time, color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 8),
+            const Text('Actividad Reciente',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Column(
+          children: recentActivity.map((activity) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                    colors: [Colors.grey.shade50, Colors.grey.shade100]),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: activity.asistio ? Colors.green : Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(activity.nombre,
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text(activity.materia,
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey[600])),
+                        Text(activity.fecha,
+                            style: TextStyle(
+                                fontSize: 10, color: Colors.grey[500])),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: activity.asistio
+                          ? Colors.green.shade100
+                          : Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(activity.asistio ? 'Asistió' : 'Faltó',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: activity.asistio
+                                ? Colors.green.shade800
+                                : Colors.red.shade800)),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildFacesCard(DataProvider data) {
+    final faces = data.registeredFaces;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha((0.05 * 255).round()),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF007f2f), Color(0xFF005a21)],
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.people, color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 8),
+            const Text('Rostros Registrados',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Column(
+          children: faces.map((face) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                    colors: [Colors.grey.shade50, Colors.grey.shade100]),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border:
+                          Border.all(color: const Color(0xFF3B82F6), width: 2),
+                      image: DecorationImage(
+                          image: NetworkImage(face.imageUrl),
+                          fit: BoxFit.cover),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(face.name,
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text(face.codigo,
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey[600])),
+                        ]),
+                  ),
+                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    Text(face.carrera,
+                        style:
+                            TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    const SizedBox(height: 6),
+                    Text('${face.confidence}%',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF10B981),
+                            fontWeight: FontWeight.w600)),
+                  ]),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ]),
     );
   }
 }
