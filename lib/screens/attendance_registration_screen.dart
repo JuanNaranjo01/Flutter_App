@@ -119,9 +119,11 @@ class _AttendanceRegistrationScreenState
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
       final sessionToken = dataProvider.authService.sessionToken;
 
-      print('🔑 Token de sesión obtenido: ${sessionToken?.substring(0, 10) ?? "NULL"}...');
+      print(
+          '🔑 Token de sesión obtenido: ${sessionToken?.substring(0, 10) ?? "NULL"}...');
       if (sessionToken == null) {
-        print('⚠️ WARNING: sessionToken es NULL - El servidor no recibirá el token');
+        print(
+            '⚠️ WARNING: sessionToken es NULL - El servidor no recibirá el token');
       }
 
       // Enviar al servidor
@@ -137,10 +139,10 @@ class _AttendanceRegistrationScreenState
       });
 
       // Verificar si hay error de sesión expirada
-      if (!response.success && 
+      if (!response.success &&
           (response.error?.contains('Sin sesión') == true ||
-           response.error?.contains('sesión expirada') == true ||
-           response.error?.contains('sesión inválida') == true)) {
+              response.error?.contains('sesión expirada') == true ||
+              response.error?.contains('sesión inválida') == true)) {
         // Sesión expirada - redirigir al login
         if (mounted) {
           _showErrorDialog(
@@ -234,18 +236,19 @@ class _AttendanceRegistrationScreenState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: const Color(0xFFE8F5E9),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.verified, color: Colors.blue.shade600, size: 20),
+                    const Icon(Icons.verified,
+                        color: Color(0xFF2E7D32), size: 20),
                     const SizedBox(width: 8),
                     Text(
                       'Confianza: ${(data.confidence * 100).toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        color: Colors.blue.shade900,
+                      style: const TextStyle(
+                        color: Color(0xFF1B5E20),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -316,7 +319,8 @@ class _AttendanceRegistrationScreenState
             Expanded(
               child: Text(
                 redirectToLogin ? 'Sesión Expirada' : 'Error',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -348,9 +352,10 @@ class _AttendanceRegistrationScreenState
           if (redirectToLogin)
             ElevatedButton(
               onPressed: () async {
-                final dataProvider = Provider.of<DataProvider>(context, listen: false);
+                final dataProvider =
+                    Provider.of<DataProvider>(context, listen: false);
                 await dataProvider.logout();
-                
+
                 if (context.mounted) {
                   Navigator.of(context).pop(); // Cerrar diálogo
                   Navigator.of(context).pushNamedAndRemoveUntil(

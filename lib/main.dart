@@ -29,11 +29,15 @@ class AsistenciaGuardApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF3b82f6),
+          seedColor: const Color(0xFF007f2f), // Verde corporativo UCEVA
           brightness: Brightness.light,
         ),
         // textTheme: GoogleFonts.interTextTheme(), // Comentado temporalmente por error de red
         scaffoldBackgroundColor: const Color(0xFFF9FAFB),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF007f2f),
+          foregroundColor: Colors.white,
+        ),
       ),
       // Inicia directamente con el LoginScreen
       initialRoute: '/login',
@@ -77,7 +81,7 @@ class _MainScreenState extends State<MainScreen> {
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        selectedItemColor: const Color(0xFF3b82f6),
+        selectedItemColor: const Color(0xFF007f2f), // Verde corporativo UCEVA
         unselectedItemColor: Colors.grey,
         selectedFontSize: 12,
         unselectedFontSize: 12,

@@ -101,7 +101,8 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           TextButton(
             onPressed: () async {
-              final dataProvider = Provider.of<DataProvider>(context, listen: false);
+              final dataProvider =
+                  Provider.of<DataProvider>(context, listen: false);
               Navigator.of(context).pop();
               await dataProvider.authService.signOut();
             },
@@ -208,9 +209,9 @@ class _LoginScreenState extends State<LoginScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF2563EB), // blue-600
-              Color(0xFF3B82F6), // blue-500
-              Color(0xFF60A5FA), // blue-400
+              Color(0xFF007f2f), // Verde corporativo UCEVA
+              Color(0xFF009938), // Verde más claro
+              Color(0xFF00b341), // Verde aún más claro
             ],
           ),
         ),
@@ -222,10 +223,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo y título
+                  // Logo UCEVA
                   Container(
-                    width: 96,
-                    height: 96,
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(24),
@@ -237,10 +237,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.school,
-                      size: 56,
-                      color: Color(0xFF2563EB),
+                    child: Image.asset(
+                      'assets/images/IMAGOTIPO-UCEVA (1).png',
+                      height: 80,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -259,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 18,
-                      color: Color(0xFFBFDBFE), // blue-200
+                      color: Color(0xFFE8F5E9),
                     ),
                   ),
                   const SizedBox(height: 48),

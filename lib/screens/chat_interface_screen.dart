@@ -22,7 +22,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
   String _selectedCorte = 'Todos';
   String _selectedMateria = 'Todas';
   bool _hasInitialized = false;
-  
+
   // Para la sección de cursos
   List<Course> _courses = [];
   bool _isLoadingCourses = false;
@@ -57,21 +57,26 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
       });
     } catch (e) {
       String friendlyMessage = 'No se pudieron cargar los cursos';
-      
+
       // Convertir errores técnicos en mensajes amigables
       final errorStr = e.toString().toLowerCase();
-      if (errorStr.contains('sesión') || errorStr.contains('session') || errorStr.contains('401')) {
+      if (errorStr.contains('sesión') ||
+          errorStr.contains('session') ||
+          errorStr.contains('401')) {
         friendlyMessage = 'Tu sesión ha expirado';
-      } else if (errorStr.contains('conexión') || errorStr.contains('connection') || errorStr.contains('socket')) {
+      } else if (errorStr.contains('conexión') ||
+          errorStr.contains('connection') ||
+          errorStr.contains('socket')) {
         friendlyMessage = 'Error de conexión';
       } else if (errorStr.contains('timeout')) {
         friendlyMessage = 'Tiempo de espera agotado';
       } else if (errorStr.contains('404')) {
         friendlyMessage = 'No se encontraron cursos';
-      } else if (errorStr.contains('500') || errorStr.contains('error del servidor')) {
+      } else if (errorStr.contains('500') ||
+          errorStr.contains('error del servidor')) {
         friendlyMessage = 'Error en el servidor';
       }
-      
+
       setState(() {
         _coursesError = friendlyMessage;
         _isLoadingCourses = false;
@@ -166,7 +171,8 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                         height: 24,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : const Icon(Icons.refresh, color: Colors.white),
@@ -182,8 +188,8 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color(0xFF9333EA),
-                      Color(0xFFA855F7),
+                      Color(0xFF007f2f), // Verde corporativo UCEVA
+                      Color(0xFF009938),
                     ],
                   ),
                 ),
@@ -199,7 +205,8 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.white.withAlpha((0.2 * 255).round()),
+                                color:
+                                    Colors.white.withAlpha((0.2 * 255).round()),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(
@@ -250,7 +257,8 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: 12),
-                    Text('Cargando cursos...', style: TextStyle(color: Colors.grey)),
+                    Text('Cargando cursos...',
+                        style: TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),
@@ -263,9 +271,12 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                      Icon(Icons.error_outline,
+                          size: 64, color: Colors.red[300]),
                       const SizedBox(height: 12),
-                      Text(_coursesError!, style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                      Text(_coursesError!,
+                          style: const TextStyle(
+                              fontSize: 16, color: Colors.grey)),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
                         onPressed: _loadCourses,
@@ -318,8 +329,6 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
     );
   }
 
-
-
   Widget _buildCourseCard(Course course) {
     return Card(
       elevation: 0,
@@ -346,15 +355,15 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF3B82F6).withOpacity(0.1),
-                      const Color(0xFF2563EB).withOpacity(0.1),
+                      const Color(0xFF007f2f).withOpacity(0.1),
+                      const Color(0xFF005a21).withOpacity(0.1),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.book,
-                  color: const Color(0xFF3B82F6),
+                  color: const Color(0xFF007f2f),
                   size: 28,
                 ),
               ),
