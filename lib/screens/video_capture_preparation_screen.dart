@@ -19,7 +19,7 @@ class VideoCapturePreparationScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
+            colors: [Color(0xFF007f2f), Color(0xFF009938)],
           ),
         ),
         child: SafeArea(

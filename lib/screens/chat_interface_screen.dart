@@ -161,7 +161,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                             icon: const Icon(Icons.refresh),
                             label: const Text('Reintentar'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF9333EA),
+                              backgroundColor: const Color(0xFF007f2f),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 24, vertical: 12),
@@ -255,8 +255,8 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Color(0xFF9333EA), // purple-600
-                          Color(0xFFA855F7), // purple-500
+                          Color(0xFF007f2f), // Verde corporativo UCEVA
+                          Color(0xFF009938),
                         ],
                       ),
                     ),
@@ -280,7 +280,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                             Text(
                               'Filtra y exporta registros por semestre, corte y materia',
                               style: const TextStyle(
-                                color: Color(0xFFE9D5FF),
+                                color: Color(0xFFE8F5E9),
                                 fontSize: 13,
                                 height: 1.3,
                               ),
@@ -737,8 +737,8 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color(0xFF9333EA), // purple-600
-                Color(0xFFA855F7), // purple-500
+                Color(0xFF007f2f), // Verde corporativo UCEVA
+                Color(0xFF009938),
               ],
             ),
           ),
@@ -762,7 +762,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                   const Text(
                     'Filtra y exporta registros por semestre, corte y materia',
                     style: TextStyle(
-                      color: Color(0xFFE9D5FF),
+                      color: Color(0xFFE8F5E9),
                       fontSize: 13,
                       height: 1.3,
                     ),

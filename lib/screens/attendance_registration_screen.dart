@@ -234,18 +234,19 @@ class _AttendanceRegistrationScreenState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: const Color(0xFFE8F5E9),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.verified, color: Colors.blue.shade600, size: 20),
+                    const Icon(Icons.verified,
+                        color: Color(0xFF2E7D32), size: 20),
                     const SizedBox(width: 8),
                     Text(
                       'Confianza: ${(data.confidence * 100).toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        color: Colors.blue.shade900,
+                      style: const TextStyle(
+                        color: Color(0xFF1B5E20),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -393,8 +394,8 @@ class _AttendanceRegistrationScreenState
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color(0xFF10B981),
-                      Color(0xFF059669),
+                      Color(0xFF007f2f), // Verde corporativo UCEVA
+                      Color(0xFF009938),
                     ],
                   ),
                 ),
@@ -417,7 +418,7 @@ class _AttendanceRegistrationScreenState
                         Text(
                           'Reconocimiento facial automático',
                           style: TextStyle(
-                            color: Color(0xFFD1FAE5),
+                            color: Color(0xFFE8F5E9),
                             fontSize: 14,
                           ),
                         ),
@@ -652,7 +653,7 @@ class _AttendanceRegistrationScreenState
                               ? null
                               : _captureFramesAndRegister,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
+                            backgroundColor: const Color(0xFF007f2f),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),

@@ -179,9 +179,9 @@ class _FaceManagementScreenState extends State<FaceManagementScreen>
         ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: const Color(0xFF3b82f6),
+          labelColor: const Color(0xFF007f2f),
           unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xFF3b82f6),
+          indicatorColor: const Color(0xFF007f2f),
           tabs: [
             Tab(
               icon: const Icon(Icons.people),
