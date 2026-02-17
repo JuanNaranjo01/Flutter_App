@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:excel/excel.dart' as excel_lib;
 import '../models/course.dart';
 import '../models/course_student.dart';
 import '../services/api_services.dart';
@@ -113,9 +114,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
     try {
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
       final sessionToken = dataProvider.authService.sessionToken;
-      final teacher = dataProvider.currentTeacher;
 
-      if (sessionToken == null || teacher == null) {
+      if (sessionToken == null) {
         throw Exception('No hay sesión activa');
       }
 
@@ -133,7 +133,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
-                  Text('Generando informe...'),
+                  Text('Generando archivo Excel...'),
                 ],
               ),
             ),
@@ -141,34 +141,58 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         ),
       );
 
-      // Generar contenido del informe
-      final buffer = StringBuffer();
-      buffer.writeln('=' * 80);
-      buffer.writeln('INFORME DE ASISTENCIA - ${widget.course.nombre.toUpperCase()}');
-      buffer.writeln('=' * 80);
-      buffer.writeln('');
-      buffer.writeln('INFORMACIÓN DEL CURSO:');
-      buffer.writeln('  Nombre: ${widget.course.nombre}');
-      buffer.writeln('  Código: ${widget.course.codigo}');
-      buffer.writeln('  Total Estudiantes: ${widget.course.estudiantesRegistrados}');
-      buffer.writeln('');
-      buffer.writeln('INFORMACIÓN DEL DOCENTE:');
-      buffer.writeln('  Nombre: ${teacher.nombre}');
-      buffer.writeln('  Código: ${teacher.codigo}');
-      buffer.writeln('  Email: ${teacher.email}');
-      buffer.writeln('');
-      buffer.writeln('FECHA DE GENERACIÓN: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
-      buffer.writeln('=' * 80);
-      buffer.writeln('');
+      // Crear archivo Excel
+      var excel = excel_lib.Excel.createExcel();
+      excel_lib.Sheet sheetObject = excel['Asistencias'];
+      
+      // Definir estilos
+      excel_lib.CellStyle headerStyle = excel_lib.CellStyle(
+        backgroundColorHex: excel_lib.ExcelColor.fromHexString('#4472C4'),
+        fontColorHex: excel_lib.ExcelColor.white,
+        bold: true,
+        fontSize: 12,
+        horizontalAlign: excel_lib.HorizontalAlign.Center,
+        verticalAlign: excel_lib.VerticalAlign.Center,
+      );
+      
+      excel_lib.CellStyle dataStyle = excel_lib.CellStyle(
+        fontSize: 11,
+        verticalAlign: excel_lib.VerticalAlign.Center,
+      );
 
-      // Información de cada estudiante con cálculo de horas perdidas
+      // Crear encabezados de la tabla
+      List<String> headers = [
+        'Código',
+        'Nombre Completo',
+        'Programa',
+        'Asistencias',
+        'Tardanzas',
+        'Ausencias',
+        'Min. Tardanza',
+        'Hrs. Perdidas',
+        'Faltas Total',
+        '% Asistencia'
+      ];
+      
+      // Insertar encabezados
+      for (int i = 0; i < headers.length; i++) {
+        var cell = sheetObject.cell(
+          excel_lib.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0)
+        );
+        cell.value = excel_lib.TextCellValue(headers[i]);
+        cell.cellStyle = headerStyle;
+      }
+
+      // Llenar datos de estudiantes
+      int rowIndex = 1;
       for (var student in _filteredStudents) {
-        buffer.writeln('-' * 80);
-        buffer.writeln('Estudiante: ${student.nombreCompleto}');
-        buffer.writeln('Código: ${student.codigo}');
-        buffer.writeln('Programa: ${student.programa}');
+        // Obtener datos de tardanzas y calcular correctamente
+        int totalMinutosTardanza = 0;
+        int tardanzas = 0;
+        double horasPerdidasPorTardanza = 0.0;
+        int totalClases = student.totalClases;
+        int ausenciasReales = student.ausencias;
         
-        // Obtener datos de asistencia completos para calcular minutos de tardanza
         try {
           final attendanceData = await ApiService.getStudentAttendance(
             sessionToken,
@@ -176,82 +200,247 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
             student.codigo,
           );
           
-          // Calcular minutos totales de tardanza
-          int totalMinutosTardanza = 0;
           final attendanceList = attendanceData['attendance'] ?? [];
           
+          // Contar tardanzas y minutos
           for (var record in attendanceList) {
-            if (record != null && record.minutosTardanza != null) {
+            if (record != null && record.minutosTardanza != null && record.minutosTardanza! > 0) {
               totalMinutosTardanza += (record.minutosTardanza as num).toInt();
+              tardanzas++;
             }
           }
           
-          // Calcular horas de clase perdidas (cada 40 minutos = 1 hora)
-          final int horasPerdidasPorTardanza = ((totalMinutosTardanza / 40).ceil()).toInt();
+          // Calcular horas perdidas como decimal (40 minutos = 1 hora de clase)
+          horasPerdidasPorTardanza = totalMinutosTardanza / 40.0;
           
-          buffer.writeln('');
-          buffer.writeln('ESTADÍSTICAS:');
-          buffer.writeln('  Asistencias: ${student.asistencias}');
-          buffer.writeln('  Ausencias: ${student.ausencias}');
-          buffer.writeln('  Minutos de tardanza acumulados: $totalMinutosTardanza min');
-          buffer.writeln('  Horas de clase perdidas por tardanza: $horasPerdidasPorTardanza hrs');
-          buffer.writeln('  Total faltas equivalentes: ${student.ausencias + horasPerdidasPorTardanza}');
-          buffer.writeln('  Porcentaje de asistencia: ${student.porcentajeAsistencia.toStringAsFixed(1)}%');
+          // Si el estudiante no tiene ningún registro (ni asistencias ni tardanzas)
+          // contar todas las clases como ausencias
+          if (student.asistencias == 0 && tardanzas == 0 && totalClases > 0) {
+            ausenciasReales = totalClases;
+          }
+          
         } catch (e) {
-          // Si falla la obtención de datos detallados, usar solo lo básico
-          buffer.writeln('');
-          buffer.writeln('ESTADÍSTICAS:');
-          buffer.writeln('  Asistencias: ${student.asistencias}');
-          buffer.writeln('  Ausencias: ${student.ausencias}');
-          buffer.writeln('  Porcentaje de asistencia: ${student.porcentajeAsistencia.toStringAsFixed(1)}%');
-          buffer.writeln('  Nota: No se pudo calcular tardanzas (${e.toString()})');
+          // Si falla, verificar si no tiene registros
+          if (student.asistencias == 0 && totalClases > 0) {
+            ausenciasReales = totalClases;
+          }
         }
         
-        buffer.writeln('');
+        // Calcular porcentaje de asistencia correctamente
+        double porcentajeAsistencia = totalClases > 0 
+            ? (student.asistencias / totalClases) * 100 
+            : 0.0;
+        
+        // Faltas totales = ausencias + horas perdidas por tardanza
+        double faltasTotales = ausenciasReales + horasPerdidasPorTardanza;
+        
+        // Insertar datos del estudiante
+        List<dynamic> rowData = [
+          student.codigo,
+          student.nombreCompleto,
+          student.programa,
+          student.asistencias,
+          tardanzas,
+          ausenciasReales,
+          totalMinutosTardanza,
+          horasPerdidasPorTardanza.toStringAsFixed(3),
+          faltasTotales.toStringAsFixed(3),
+          '${porcentajeAsistencia.toStringAsFixed(1)}%',
+        ];
+        
+        for (int i = 0; i < rowData.length; i++) {
+          var cell = sheetObject.cell(
+            excel_lib.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: rowIndex)
+          );
+          
+          if (rowData[i] is String) {
+            cell.value = excel_lib.TextCellValue(rowData[i]);
+          } else if (rowData[i] is int) {
+            cell.value = excel_lib.IntCellValue(rowData[i]);
+          } else if (rowData[i] is double) {
+            cell.value = excel_lib.DoubleCellValue(rowData[i]);
+          } else {
+            cell.value = excel_lib.TextCellValue(rowData[i].toString());
+          }
+          
+          cell.cellStyle = dataStyle;
+        }
+        
+        rowIndex++;
       }
       
-      buffer.writeln('=' * 80);
-      buffer.writeln('FIN DEL INFORME');
-      buffer.writeln('=' * 80);
+      // Ajustar ancho de columnas
+      for (int i = 0; i < headers.length; i++) {
+        sheetObject.setColumnWidth(i, 15);
+      }
+      // Columna nombre más ancha
+      sheetObject.setColumnWidth(1, 30);
+      // Columna programa más ancha
+      sheetObject.setColumnWidth(2, 35);
 
+      // Eliminar hoja por defecto
+      if (excel.sheets.containsKey('Sheet1')) {
+        excel.delete('Sheet1');
+      }
+
+      // Guardar archivo en Downloads
+      Directory? directory;
+      String? downloadsPath;
+      
+      if (Platform.isAndroid) {
+        directory = Directory('/storage/emulated/0/Download');
+        if (!await directory.exists()) {
+          directory = Directory('/storage/emulated/0/Downloads');
+          if (!await directory.exists()) {
+            directory = await getExternalStorageDirectory();
+          }
+        }
+        downloadsPath = directory?.path;
+      } else {
+        directory = await getApplicationDocumentsDirectory();
+        downloadsPath = directory.path;
+      }
+      
+      // Limpiar el nombre del curso para usarlo como nombre de archivo
+      String cleanCourseName = widget.course.nombre
+          .replaceAll(RegExp(r'[^a-zA-Z0-9_\-\s]'), '')
+          .replaceAll(RegExp(r'\s+'), '_')
+          .trim();
+      
+      final filename = '$cleanCourseName.xlsx';
+      final path = '${downloadsPath}/$filename';
+      
       // Guardar archivo
-      final directory = await getApplicationDocumentsDirectory();
-      final filename = 'informe_${widget.course.codigo}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.txt';
-      final path = '${directory.path}/$filename';
-      final file = File(path);
-      await file.writeAsString(buffer.toString());
+      List<int>? fileBytes = excel.save();
+      if (fileBytes != null) {
+        File(path)
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(fileBytes);
+      }
 
       // Cerrar diálogo de carga
       if (mounted) Navigator.pop(context);
 
-      // Mostrar mensaje de éxito
+      // Mostrar diálogo informativo
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.white),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                ),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Informe generado exitosamente',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text(filename, style: const TextStyle(fontSize: 12)),
-                    ],
+                const Expanded(
+                  child: Text(
+                    'Excel generado',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'OK',
-              textColor: Colors.white,
-              onPressed: () {},
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.table_chart, color: Colors.green[600], size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Tabla de asistencias exportada exitosamente',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Nombre del archivo:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          filename,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline, size: 20, color: Colors.blue[700]),
+                            const SizedBox(width: 8),
+                            Text(
+                              '¿Dónde encontrarlo?',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[900],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (Platform.isAndroid) ...[
+                          _buildLocationStep('1', 'Abre la app "Archivos" de tu celular'),
+                          _buildLocationStep('2', 'Ve a "Descargas" o "Downloads"'),
+                          _buildLocationStep('3', 'Busca: $filename'),
+                          _buildLocationStep('4', 'Ábrelo con Excel, Sheets o WPS Office'),
+                        ] else ...[
+                          _buildLocationStep('1', 'Revisa la carpeta de documentos'),
+                          _buildLocationStep('2', 'Abre con Excel o Numbers'),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Entendido', style: TextStyle(fontSize: 16)),
+              ),
+            ],
           ),
         );
       }
@@ -271,6 +460,50 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         );
       }
     }
+  }
+
+  // Widget auxiliar para mostrar pasos en el diálogo
+  Widget _buildLocationStep(String number, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Colors.blue[700],
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[800],
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

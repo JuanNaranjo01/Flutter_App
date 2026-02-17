@@ -254,187 +254,111 @@ class _StudentAttendanceDetailScreenState
   Widget _buildSummarySection() {
     if (_summary.isEmpty) return const SizedBox.shrink();
 
-    final totalAsistencias = _summary['asistencias'] ?? 0;
-    final totalAusencias = _summary['ausencias'] ?? 0;
+    final totalAsistencias = _summary['asistencias'] ?? _summary['presentes'] ?? 0;
+    final totalAusencias = _summary['ausencias'] ?? _summary['ausentes'] ?? 0;
     final totalClases = _summary['total_clases'] ?? 0;
-    final porcentaje = _summary['porcentaje_asistencia'] ?? 0.0;
-
-    final Color statusColor = porcentaje >= 80
-        ? Colors.green
-        : porcentaje >= 70
-            ? Colors.orange
-            : Colors.red;
+    final totalTardanzas = _summary['tardanzas'] ?? 0;
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Gráfico circular
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  statusColor.withOpacity(0.1),
-                  statusColor.withOpacity(0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          // Primera fila: Total de clases y Asistencias
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.class_,
+                  label: 'Total de clases',
+                  value: totalClases.toString(),
+                  color: Colors.blue,
+                ),
               ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                // Porcentaje principal
-                Column(
-                  children: [
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: statusColor,
-                          width: 8,
-                        ),
-                        color: Colors.white,
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${porcentaje.toStringAsFixed(1)}%',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: statusColor,
-                              ),
-                            ),
-                            Text(
-                              'Asistencia',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.check_circle,
+                  label: 'Asistencias',
+                  value: totalAsistencias.toString(),
+                  color: Colors.green,
                 ),
-                // Estadísticas
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildStatRow(
-                      icon: Icons.class_,
-                      label: 'Total de clases',
-                      value: totalClases.toString(),
-                      color: Colors.blue,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildStatRow(
-                      icon: Icons.check_circle,
-                      label: 'Asistencias',
-                      value: totalAsistencias.toString(),
-                      color: Colors.green,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildStatRow(
-                      icon: Icons.cancel,
-                      label: 'Ausencias',
-                      value: totalAusencias.toString(),
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildStatRow(
-                      icon: Icons.schedule,
-                      label: 'Tardanzas',
-                      value: (_summary['tardanzas'] ?? 0).toString(),
-                      color: Colors.orange,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          if (_studentInfo.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _buildStudentInfo(),
-          ],
+          const SizedBox(height: 12),
+          // Segunda fila: Ausencias y Tardanzas
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.cancel,
+                  label: 'Ausencias',
+                  value: totalAusencias.toString(),
+                  color: Colors.red,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.schedule,
+                  label: 'Tardanzas',
+                  value: totalTardanzas.toString(),
+                  color: Colors.orange,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatRow({
+  Widget _buildStatCard({
     required IconData icon,
     required String label,
     required String value,
     required Color color,
   }) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey[600],
-              ),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStudentInfo() {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.05),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.person, color: Color(0xFF3b82f6), size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_studentInfo['email_institucional'] != null)
-                  Text(
-                    _studentInfo['email_institucional'],
-                    style: const TextStyle(fontSize: 12),
+          Row(
+            children: [
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w500,
                   ),
-                if (_studentInfo['programa'] != null)
-                  Text(
-                    _studentInfo['programa'],
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-              ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
           ),
         ],

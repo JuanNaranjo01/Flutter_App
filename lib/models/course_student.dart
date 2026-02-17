@@ -76,11 +76,11 @@ class CourseStudent {
                          json['total_clases'] ?? 0;
       
       // Calcular porcentaje de asistencia
-      // Las tardanzas se consideran asistencias (llegó aunque tarde)
+      // Las tardanzas ya están incluidas en el campo 'asistencias' del servidor
+      // NO sumar tardanzas nuevamente para evitar porcentajes mayores a 100%
       final porcentajeFallas = stats['porcentaje_fallas'] ?? 0.0;
-      final asistenciasEfectivas = asistencias + tardanzas;
       final porcentaje = totalClases > 0
-          ? ((asistenciasEfectivas / totalClases) * 100)
+          ? ((asistencias / totalClases) * 100)
           : (100.0 - porcentajeFallas);
       
       print('✅ CourseStudent parseado: $codigo - $nombre (Asist: $asistencias, Tard: $tardanzas, Ausenc: $ausencias, Total: $totalClases)');

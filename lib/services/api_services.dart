@@ -617,8 +617,9 @@ class ApiService {
     final porcentajeAsistencia = total > 0 ? (asistenciasEfectivas / total * 100) : 0.0;
     
     return {
-      'presentes': presentes,
-      'ausentes': ausentes,
+      'asistencias': presentes,  // ✅ Usar 'asistencias' para consistencia con frontend
+      'presentes': presentes,     // Mantener por compatibilidad
+      'ausencias': ausentes,      // ✅ Cambiar 'ausentes' a 'ausencias' para consistencia
       'tardanzas': tardanzas,
       'total_clases': total,
       'porcentaje_asistencia': porcentajeAsistencia,
