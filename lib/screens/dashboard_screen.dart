@@ -69,8 +69,8 @@ class DashboardScreen extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Color(0xFF2563EB),
-                          Color(0xFF3B82F6),
+                          Color(0xFF007f2f), // Verde corporativo UCEVA
+                          Color(0xFF009938),
                         ],
                       ),
                     ),
@@ -165,8 +165,8 @@ class DashboardScreen extends StatelessWidget {
                                   value: totalStudents.toString(),
                                   icon: Icons.people,
                                   gradientColors: const [
-                                    Color(0xFF3B82F6),
-                                    Color(0xFF2563EB)
+                                    Color(0xFF007f2f),
+                                    Color(0xFF005a21)
                                   ],
                                 ),
                               ),
@@ -177,8 +177,8 @@ class DashboardScreen extends StatelessWidget {
                                   value: '$attendanceRate%',
                                   icon: Icons.trending_up,
                                   gradientColors: const [
-                                    Color(0xFF10B981),
-                                    Color(0xFF059669)
+                                    Color(0xFF007f2f),
+                                    Color(0xFF005a21)
                                   ],
                                 ),
                               ),
@@ -189,8 +189,8 @@ class DashboardScreen extends StatelessWidget {
                                   value: presentRecords.toString(),
                                   icon: Icons.check_circle,
                                   gradientColors: const [
-                                    Color(0xFF8B5CF6),
-                                    Color(0xFF7C3AED)
+                                    Color(0xFF007f2f),
+                                    Color(0xFF005a21)
                                   ],
                                 ),
                               ),
@@ -203,8 +203,8 @@ class DashboardScreen extends StatelessWidget {
                                 value: totalStudents.toString(),
                                 icon: Icons.people,
                                 gradientColors: const [
-                                  Color(0xFF3B82F6),
-                                  Color(0xFF2563EB)
+                                  Color(0xFF007f2f),
+                                  Color(0xFF005a21)
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -213,8 +213,8 @@ class DashboardScreen extends StatelessWidget {
                                 value: '$attendanceRate%',
                                 icon: Icons.trending_up,
                                 gradientColors: const [
-                                  Color(0xFF10B981),
-                                  Color(0xFF059669)
+                                  Color(0xFF007f2f),
+                                  Color(0xFF005a21)
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -223,8 +223,8 @@ class DashboardScreen extends StatelessWidget {
                                 value: presentRecords.toString(),
                                 icon: Icons.check_circle,
                                 gradientColors: const [
-                                  Color(0xFF8B5CF6),
-                                  Color(0xFF7C3AED)
+                                  Color(0xFF007f2f),
+                                  Color(0xFF005a21)
                                 ],
                               ),
                             ],
@@ -366,7 +366,7 @@ class DashboardScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                    colors: [Color(0xFF007f2f), Color(0xFF005a21)],
                   ),
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -573,7 +573,7 @@ class DashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                  colors: [Color(0xFF007f2f), Color(0xFF005a21)],
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),

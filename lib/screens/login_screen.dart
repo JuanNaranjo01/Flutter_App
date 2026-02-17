@@ -79,13 +79,14 @@ class _LoginScreenState extends State<LoginScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: const Color(0xFFE8F5E9),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[200]!),
+                border: Border.all(color: const Color(0xFFA5D6A7)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                  Icon(Icons.info_outline,
+                      color: const Color(0xFF2E7D32), size: 20),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
@@ -132,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
             width: 24,
             height: 24,
             decoration: BoxDecoration(
-              color: Colors.blue[600],
+              color: const Color(0xFF007f2f),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -208,9 +209,9 @@ class _LoginScreenState extends State<LoginScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF2563EB), // blue-600
-              Color(0xFF3B82F6), // blue-500
-              Color(0xFF60A5FA), // blue-400
+              Color(0xFF007f2f), // Verde corporativo UCEVA
+              Color(0xFF009938), // Verde más claro
+              Color(0xFF00b341), // Verde aún más claro
             ],
           ),
         ),
@@ -222,10 +223,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo y título
+                  // Logo UCEVA
                   Container(
-                    width: 96,
-                    height: 96,
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(24),
@@ -237,10 +237,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.school,
-                      size: 56,
-                      color: Color(0xFF2563EB),
+                    child: Image.asset(
+                      'assets/images/IMAGOTIPO-UCEVA.png',
+                      height: 80,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -259,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 18,
-                      color: Color(0xFFBFDBFE), // blue-200
+                      color: Color(0xFFE8F5E9),
                     ),
                   ),
                   const SizedBox(height: 48),
@@ -366,7 +366,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               children: [
                                 Icon(
                                   Icons.info_outline,
-                                  color: Colors.blue[700],
+                                  color: const Color(0xFF2E7D32),
                                   size: 24,
                                 ),
                                 const SizedBox(width: 12),

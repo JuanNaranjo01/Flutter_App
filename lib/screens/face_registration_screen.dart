@@ -23,7 +23,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   bool _isProcessing = false;
   bool _isCapturing = false;
   String? _errorMessage;
-  
+
   // Cámara
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
@@ -178,7 +178,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
               _initializeCamera();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3b82f6),
+              backgroundColor: const Color(0xFF007f2f),
               foregroundColor: Colors.white,
             ),
             child: const Text('Continuar'),
@@ -299,8 +299,11 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                response.success ? '¡Registro Exitoso!' : 'Error en el Registro',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                response.success
+                    ? '¡Registro Exitoso!'
+                    : 'Error en el Registro',
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -316,7 +319,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: const Color(0xFFE8F5E9),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -324,8 +327,8 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                     children: [
                       Text(
                         'Fotos guardadas: ${response.student!.embeddingsSaved}/${response.student!.totalImages}',
-                        style: TextStyle(
-                          color: Colors.blue.shade900,
+                        style: const TextStyle(
+                          color: Color(0xFF1B5E20),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -366,7 +369,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
               _resetForm();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3b82f6),
+              backgroundColor: const Color(0xFF007f2f),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
@@ -465,7 +468,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
+                        colors: [Color(0xFF007f2f), Color(0xFF009938)],
                       ),
                     ),
                     child: const SafeArea(
@@ -487,7 +490,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                             Text(
                               'Captura automática con video',
                               style: TextStyle(
-                                color: Color(0xFFBFDBFE),
+                                color: Color(0xFFE8F5E9),
                                 fontSize: 14,
                               ),
                             ),
@@ -574,7 +577,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                       ? 'Buscando...'
                                       : 'Buscar Estudiante'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF3b82f6),
+                                    backgroundColor: const Color(0xFF007f2f),
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 14),
@@ -590,7 +593,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                       Card(
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16)),
-                        color: Colors.blue.shade50,
+                        color: const Color(0xFFE8F5E9),
                         child: Padding(
                           padding: const EdgeInsets.all(20),
                           child: Column(
@@ -599,14 +602,14 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                               Row(
                                 children: [
                                   Icon(Icons.info_outline,
-                                      size: 28, color: Colors.blue.shade700),
+                                      size: 28, color: const Color(0xFF2E7D32)),
                                   const SizedBox(width: 12),
                                   Text(
                                     'Instrucciones',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.blue.shade900,
+                                      color: const Color(0xFF1B5E20),
                                     ),
                                   ),
                                 ],
@@ -693,7 +696,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
           width: 32,
           height: 32,
           decoration: const BoxDecoration(
-            color: Color(0xFF3b82f6),
+            color: Color(0xFF007f2f),
             shape: BoxShape.circle,
           ),
           child: Center(
@@ -713,9 +716,9 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
               text,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
-                color: Colors.blue.shade900,
+                color: Color(0xFF1B5E20),
                 height: 1.4,
               ),
             ),
@@ -729,7 +732,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF3b82f6),
+        backgroundColor: const Color(0xFF007f2f),
         foregroundColor: Colors.white,
         elevation: 0,
         toolbarHeight: 80,
@@ -854,25 +857,25 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: const Color(0xFFE8F5E9),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       children: [
                         Text(
                           _foundStudent?.codigo ?? '',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade900,
+                            color: Color(0xFF1B5E20),
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           _foundStudent?.programa ?? '',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
-                            color: Colors.blue.shade700,
+                            color: Color(0xFF2E7D32),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -908,10 +911,9 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton.icon(
-                        onPressed:
-                            _isCameraInitialized && !_isCapturing
-                                ? _captureFrames
-                                : null,
+                        onPressed: _isCameraInitialized && !_isCapturing
+                            ? _captureFrames
+                            : null,
                         icon: Icon(
                           _isCapturing ? Icons.check_circle : Icons.camera_alt,
                           size: 28,
@@ -926,7 +928,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _isCapturing
                               ? Colors.green
-                              : const Color(0xFF3b82f6),
+                              : const Color(0xFF007f2f),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),

@@ -152,49 +152,172 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
-      body: CustomScrollView(
-        slivers: [
-          // App Bar
-          SliverAppBar(
-            expandedHeight: 140,
-            pinned: true,
-            actions: [
-              IconButton(
-                icon: _isLoadingCourses
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+      body: Consumer<DataProvider>(
+        builder: (context, data, child) {
+          // Mostrar loading inicial
+          if (data.isLoadingAttendance && data.attendanceRecords.isEmpty) {
+            return CustomScrollView(
+              slivers: [
+                _buildAppBar(context, data),
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Cargando registros de asistencia...',
+                          style: TextStyle(color: Colors.grey[600]),
                         ),
-                      )
-                    : const Icon(Icons.refresh, color: Colors.white),
-                onPressed: _isLoadingCourses ? null : _loadCourses,
-                tooltip: 'Actualizar',
-              ),
-              const SizedBox(width: 8),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF9333EA),
-                      Color(0xFFA855F7),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 56, 24, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Row(
+              ],
+            );
+          }
+
+          // Mostrar error si hay y no hay datos
+          if (data.attendanceError != null && data.attendanceRecords.isEmpty) {
+            return CustomScrollView(
+              slivers: [
+                _buildAppBar(context, data),
+                SliverFillRemaining(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline,
+                              size: 64, color: Colors.red[300]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error al cargar asistencias',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            data.attendanceError!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: () => data.refreshAttendanceRecords(),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Reintentar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF9333EA),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          // Obtener materias únicas
+          final materias = data.attendanceRecords
+              .map((r) => r.materia)
+              .toSet()
+              .toList()
+            ..sort();
+
+          // Obtener semestres únicos
+          final semestres = data.attendanceRecords
+              .map((r) => r.semestre)
+              .toSet()
+              .toList()
+            ..sort();
+
+          // Filtrar registros
+          final filteredRecords = data.attendanceRecords.where((record) {
+            final matchesSearch = record.nombre
+                    .toLowerCase()
+                    .contains(_searchTerm.toLowerCase()) ||
+                record.codigo
+                    .toLowerCase()
+                    .contains(_searchTerm.toLowerCase()) ||
+                record.materia
+                    .toLowerCase()
+                    .contains(_searchTerm.toLowerCase());
+
+            final matchesSemester = _selectedSemester == 'Todos' ||
+                record.semestre == _selectedSemester;
+            final matchesCorte =
+                _selectedCorte == 'Todos' || record.corte == _selectedCorte;
+            final matchesMateria = _selectedMateria == 'Todas' ||
+                record.materia == _selectedMateria;
+
+            return matchesSearch &&
+                matchesSemester &&
+                matchesCorte &&
+                matchesMateria;
+          }).toList();
+
+          // Calcular estadísticas
+          final total = filteredRecords.length;
+          final present = filteredRecords.where((r) => r.asistio).length;
+          final absent = total - present;
+          final totalHours =
+              filteredRecords.fold<int>(0, (sum, r) => sum + r.horasAsistidas);
+
+          return CustomScrollView(
+            slivers: [
+              // App Bar con gradiente
+              SliverAppBar(
+                expandedHeight: 140,
+                pinned: true,
+                actions: [
+                  IconButton(
+                    icon: data.isLoadingAttendance
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.refresh, color: Colors.white),
+                    onPressed: data.isLoadingAttendance
+                        ? null
+                        : () => data.refreshAttendanceRecords(),
+                    tooltip: 'Actualizar',
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF9333EA), // purple-600
+                          Color(0xFFA855F7), // purple-500
+                        ],
+                      ),
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             Container(
                               padding: const EdgeInsets.all(10),
@@ -220,26 +343,24 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Filtra y exporta registros por semestre, corte y materia',
+                              style: const TextStyle(
+                                color: Color(0xFFE9D5FF),
+                                fontSize: 13,
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Gestión de cursos y estudiantes',
-                          style: const TextStyle(
-                            color: Color(0xFFE9D5FF),
-                            fontSize: 13,
-                            height: 1.3,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
 
           // Lista de cursos directamente
           if (_isLoadingCourses)
@@ -318,98 +439,71 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
     );
   }
 
-
-
-  Widget _buildCourseCard(Course course) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!, width: 1),
-      ),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CourseStudentsScreen(course: course),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF3B82F6).withOpacity(0.1),
-                      const Color(0xFF2563EB).withOpacity(0.1),
-                    ],
+  Widget _buildAppBar(BuildContext context, DataProvider data) {
+    return SliverAppBar(
+      expandedHeight: 140,
+      pinned: true,
+      actions: [
+        IconButton(
+          icon: data.isLoadingAttendance
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.book,
-                  color: const Color(0xFF3B82F6),
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      course.nombre,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                )
+              : const Icon(Icons.refresh, color: Colors.white),
+          onPressed: data.isLoadingAttendance
+              ? null
+              : () => data.refreshAttendanceRecords(),
+          tooltip: 'Actualizar',
+        ),
+        const SizedBox(width: 8),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF9333EA), // purple-600
+                Color(0xFFA855F7), // purple-500
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Consulta de Asistencias',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.tag, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Código: ${course.codigo}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Filtra y exporta registros por semestre, corte y materia',
+                    style: TextStyle(
+                      color: Color(0xFFE9D5FF),
+                      fontSize: 13,
+                      height: 1.3,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.people, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${course.estudiantesRegistrados} estudiantes',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.grey[400],
-                size: 18,
-              ),
-            ],
+            ),
           ),
         ),
       ),
