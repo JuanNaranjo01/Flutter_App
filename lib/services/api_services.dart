@@ -9,6 +9,8 @@ import '../models/attendance_history_response.dart';
 import '../models/course.dart';
 import '../models/course_student.dart';
 import '../models/attendance_detail.dart';
+import '../models/periodo.dart';
+import '../models/estadisticas_corte.dart';
 
 class ApiService {
   // Cliente HTTP con timeouts configurados
@@ -412,16 +414,33 @@ class ApiService {
   }
 
   /// Obtiene los estudiantes de un curso específico con sus estadísticas
+  /// Opcionalmente filtra por periodo, semestre y corte
   static Future<List<CourseStudent>> getCourseStudents(
     String sessionToken,
-    int courseId,
-  ) async {
+    int courseId, {
+    int? anio,
+    String? semestre,
+    int? corte,
+  }) async {
     try {
       print('👥 Solicitando estudiantes del curso $courseId...');
+      
+      // Construir el body con filtros opcionales
+      final Map<String, dynamic> requestBody = {
+        'session_token': sessionToken,
+      };
+      
+      // Agregar filtros si están presentes
+      if (anio != null) requestBody['año'] = anio;
+      if (semestre != null) requestBody['semestre'] = semestre;
+      if (corte != null) requestBody['corte'] = corte;
+      
+      print('📦 Enviando filtros: $requestBody');
+      
       final response = await _httpClient.post(
         Uri.parse('${ApiConfig.baseUrl}/api/teacher/course/$courseId/students'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'session_token': sessionToken}),
+        body: jsonEncode(requestBody),
       ).timeout(const Duration(seconds: 10));
 
       print('📡 Respuesta estudiantes - Status: ${response.statusCode}');
@@ -624,6 +643,185 @@ class ApiService {
       'total_clases': total,
       'porcentaje_asistencia': porcentajeAsistencia,
     };
+  }
+
+  /// Obtiene todos los periodos académicos
+  /// [anio] - Filtrar por año opcional
+  /// [semestre] - Filtrar por semestre opcional (1 o 2)
+  /// [estado] - Filtrar por estado opcional (activo, inactivo)
+  static Future<List<Periodo>> getPeriodos({
+    int? anio,
+    String? semestre,
+    String? estado,
+  }) async {
+    try {
+      print('📅 Solicitando periodos académicos...');
+      
+      // Construir query params
+      final Map<String, String> queryParams = {};
+      if (anio != null) queryParams['año'] = anio.toString();
+      if (semestre != null) queryParams['semestre'] = semestre;
+      if (estado != null) queryParams['estado'] = estado;
+      
+      final uri = Uri.parse('${ApiConfig.baseUrl}/api/periodos')
+          .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+      
+      final response = await _httpClient.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      print('📡 Respuesta periodos - Status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> periodosJson = data['periodos'] ?? [];
+        
+        return periodosJson
+            .map((json) => Periodo.fromJson(json))
+            .toList();
+      } else {
+        throw Exception('Error al obtener periodos: ${response.statusCode}');
+      }
+    } on SocketException {
+      throw Exception('Error de conexión. Verifica tu conexión a internet.');
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado.');
+    } catch (e) {
+      print('❌ Error en getPeriodos: $e');
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+
+  /// Obtiene el periodo académico actual
+  static Future<PeriodoActual?> getPeriodoActual() async {
+    try {
+      print('📅 Solicitando periodo actual...');
+      
+      final response = await _httpClient.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/periodo_actual'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      print('📡 Respuesta periodo actual - Status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        if (data['success'] == true && data['periodo_actual'] != null) {
+          return PeriodoActual.fromJson(data['periodo_actual']);
+        }
+        return null;
+      } else {
+        throw Exception('Error al obtener periodo actual: ${response.statusCode}');
+      }
+    } on SocketException {
+      throw Exception('Error de conexión. Verifica tu conexión a internet.');
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado.');
+    } catch (e) {
+      print('❌ Error en getPeriodoActual: $e');
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+
+  /// Obtiene asistencias de un estudiante filtradas por corte
+  /// [codigoEstudiante] - Código del estudiante (requerido)
+  /// [idCurso] - ID del curso opcional
+  /// [anio] - Año del periodo opcional
+  /// [semestre] - Semestre opcional (1 o 2)
+  /// [corte] - Número de corte opcional (1, 2 o 3)
+  static Future<List<AsistenciaCorte>> getAsistenciasPorCorte({
+    required String codigoEstudiante,
+    int? idCurso,
+    int? anio,
+    String? semestre,
+    int? corte,
+  }) async {
+    try {
+      print('📊 Solicitando asistencias por corte para $codigoEstudiante...');
+      
+      // Construir query params
+      final Map<String, String> queryParams = {
+        'codigo_estudiante': codigoEstudiante,
+      };
+      if (idCurso != null) queryParams['id_curso'] = idCurso.toString();
+      if (anio != null) queryParams['año'] = anio.toString();
+      if (semestre != null) queryParams['semestre'] = semestre;
+      if (corte != null) queryParams['corte'] = corte.toString();
+      
+      final uri = Uri.parse('${ApiConfig.baseUrl}/api/asistencias_por_corte')
+          .replace(queryParameters: queryParams);
+      
+      final response = await _httpClient.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      print('📡 Respuesta asistencias por corte - Status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> asistenciasJson = data['asistencias'] ?? [];
+        
+        return asistenciasJson
+            .map((json) => AsistenciaCorte.fromJson(json))
+            .toList();
+      } else {
+        throw Exception('Error al obtener asistencias por corte: ${response.statusCode}');
+      }
+    } on SocketException {
+      throw Exception('Error de conexión. Verifica tu conexión a internet.');
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado.');
+    } catch (e) {
+      print('❌ Error en getAsistenciasPorCorte: $e');
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+
+  /// Obtiene estadísticas de asistencia de un estudiante por corte
+  /// [codigoEstudiante] - Código del estudiante (requerido)
+  /// [idCurso] - ID del curso opcional
+  static Future<List<EstadisticasCorte>> getEstadisticasPorCorte({
+    required String codigoEstudiante,
+    int? idCurso,
+  }) async {
+    try {
+      print('📈 Solicitando estadísticas por corte para $codigoEstudiante...');
+      
+      // Construir query params
+      final Map<String, String> queryParams = {};
+      if (idCurso != null) queryParams['id_curso'] = idCurso.toString();
+      
+      final uri = Uri.parse('${ApiConfig.baseUrl}/api/estadisticas_por_corte/$codigoEstudiante')
+          .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+      
+      final response = await _httpClient.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      print('📡 Respuesta estadísticas por corte - Status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> estadisticasJson = data['estadisticas'] ?? [];
+        
+        return estadisticasJson
+            .map((json) => EstadisticasCorte.fromJson(json))
+            .toList();
+      } else {
+        throw Exception('Error al obtener estadísticas por corte: ${response.statusCode}');
+      }
+    } on SocketException {
+      throw Exception('Error de conexión. Verifica tu conexión a internet.');
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado.');
+    } catch (e) {
+      print('❌ Error en getEstadisticasPorCorte: $e');
+      throw Exception('Error: ${e.toString()}');
+    }
   }
 }
 

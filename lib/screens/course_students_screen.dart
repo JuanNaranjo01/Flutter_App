@@ -8,6 +8,7 @@ import '../models/course.dart';
 import '../models/course_student.dart';
 import '../services/api_services.dart';
 import '../providers/data_provider.dart';
+import '../models/periodo.dart';
 import 'student_attendance_detail_screen.dart';
 
 class CourseStudentsScreen extends StatefulWidget {
@@ -27,10 +28,50 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
   String _searchQuery = '';
   String _sortBy = 'nombre'; // nombre, asistencia, ausencias
 
+  // Filtros de periodo y corte
+  List<Periodo> _periodos = [];
+  Periodo? _periodoSeleccionado;
+  int? _corteSeleccionado;
+  DateTime? _fechaSeleccionada;
+  bool _loadingPeriodos = false;
+
   @override
   void initState() {
     super.initState();
+    _loadPeriodos();
     _loadStudents();
+  }
+
+  Future<void> _loadPeriodos() async {
+    setState(() {
+      _loadingPeriodos = true;
+    });
+
+    try {
+      final periodos = await ApiService.getPeriodos();
+      final periodoActual = await ApiService.getPeriodoActual();
+      
+      setState(() {
+        _periodos = periodos;
+        // Pre-seleccionar el periodo actual si existe
+        if (periodoActual != null) {
+          _periodoSeleccionado = periodos.firstWhere(
+            (p) => p.idPeriodo == periodoActual.idPeriodo,
+            orElse: () => periodos.isNotEmpty ? periodos.first : periodos.first,
+          );
+          _corteSeleccionado = periodoActual.corteActual;
+        } else if (periodos.isNotEmpty) {
+          _periodoSeleccionado = periodos.first;
+          _corteSeleccionado = 1;
+        }
+        _loadingPeriodos = false;
+      });
+    } catch (e) {
+      print('⚠️ Error cargando periodos: $e');
+      setState(() {
+        _loadingPeriodos = false;
+      });
+    }
   }
 
   Future<void> _loadStudents() async {
@@ -47,9 +88,29 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         throw Exception('SESIÓN_INVÁLIDA');
       }
 
+      // Preparar parámetros de filtro opcionales
+      int? anioFiltro;
+      String? semestreFiltro;
+      int? corteFiltro;
+      
+      if (_periodoSeleccionado != null) {
+        anioFiltro = _periodoSeleccionado!.anio;
+        semestreFiltro = _periodoSeleccionado!.semestre;
+      }
+      
+      if (_corteSeleccionado != null) {
+        corteFiltro = _corteSeleccionado;
+      }
+
+      print('🔍 Filtros aplicados - Año: $anioFiltro, Semestre: $semestreFiltro, Corte: $corteFiltro');
+
+      // Llamar al servicio con los filtros
       final students = await ApiService.getCourseStudents(
         sessionToken,
         widget.course.id,
+        anio: anioFiltro,
+        semestre: semestreFiltro,
+        corte: corteFiltro,
       );
 
       setState(() {
@@ -82,6 +143,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
     }
   }
 
+  /// Aplica filtros de periodo y corte a los estudiantes
+  /// Obtiene estadísticas específicas por corte para cada estudiante
   void _applySortAndFilter() {
     setState(() {
       // Filtrar
@@ -653,6 +716,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       children: [
         _buildSearchBar(),
         _buildSummaryCards(),
+        _buildFilterSection(),
         Expanded(
           child: _students.isEmpty
               ? _buildEmptyState()
@@ -779,6 +843,261 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFilterSection() {
+    if (_students.isEmpty && !_loadingPeriodos) return const SizedBox.shrink();
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.filter_list, size: 18, color: Color(0xFF6B7280)),
+              SizedBox(width: 6),
+              Text(
+                'Filtros',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF374151),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              // Filtro de Periodo/Semestre
+              Expanded(
+                flex: 2,
+                child: _buildPeriodoDropdown(),
+              ),
+              const SizedBox(width: 8),
+              // Filtro de Corte
+              Expanded(
+                child: _buildCorteDropdown(),
+              ),
+              const SizedBox(width: 8),
+              // Botón de fecha
+              _buildDateButton(),
+            ],
+          ),
+          // Chips de filtros activos
+          if (_periodoSeleccionado != null || _corteSeleccionado != null || _fechaSeleccionada != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  if (_periodoSeleccionado != null)
+                    _buildFilterChip(
+                      label: _periodoSeleccionado!.nombrePeriodo,
+                      onDelete: () {
+                        setState(() {
+                          _periodoSeleccionado = null;
+                          _corteSeleccionado = null;
+                        });
+                        _loadStudents();
+                      },
+                    ),
+                  if (_corteSeleccionado != null)
+                    _buildFilterChip(
+                      label: 'Corte $_corteSeleccionado',
+                      onDelete: () {
+                        setState(() {
+                          _corteSeleccionado = null;
+                        _loadStudents();
+                        });
+                      },
+                    ),
+                  if (_fechaSeleccionada != null)
+                    _buildFilterChip(
+                      label: DateFormat('dd/MM/yyyy').format(_fechaSeleccionada!),
+                      onDelete: () {
+                        setState(() {
+                        _applySortAndFilter();
+                          _fechaSeleccionada = null;
+                        });
+                      },
+                    ),
+                  // Botón para limpiar todos los filtros
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _periodoSeleccionado = null;
+                      _loadStudents();
+                        _corteSeleccionado = null;
+                        _fechaSeleccionada = null;
+                      });
+                    },
+                    icon: const Icon(Icons.clear_all, size: 16),
+                    label: const Text('Limpiar filtros', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodoDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: _periodoSeleccionado != null 
+              ? const Color(0xFF3b82f6) 
+              : Colors.transparent,
+          width: 1.5,
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<Periodo>(
+          isExpanded: true,
+          isDense: true,
+          hint: const Text('Periodo', style: TextStyle(fontSize: 13)),
+          value: _periodoSeleccionado,
+          icon: const Icon(Icons.arrow_drop_down, size: 20),
+          items: _periodos.map((Periodo periodo) {
+            return DropdownMenuItem<Periodo>(
+              value: periodo,
+              child: Text(
+                periodo.nombrePeriodo,
+                style: const TextStyle(fontSize: 13),
+              ),
+            );
+          }).toList(),
+          onChanged: (Periodo? newValue) {
+            setState(() {
+              _periodoSeleccionado = newValue;
+              // Reset corte al cambiar periodo
+              _corteSeleccionado = null;
+            });
+            // Recargar estudiantes con el nuevo filtro
+            _loadStudents();
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCorteDropdown() {
+    final cortesDisponibles = _periodoSeleccionado?.cortes ?? [];
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: _corteSeleccionado != null 
+              ? const Color(0xFF3b82f6) 
+              : Colors.transparent,
+          width: 1.5,
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          isExpanded: true,
+          isDense: true,
+          hint: const Text('Corte', style: TextStyle(fontSize: 13)),
+          value: _corteSeleccionado,
+          icon: const Icon(Icons.arrow_drop_down, size: 20),
+          items: cortesDisponibles.map((Corte corte) {
+            return DropdownMenuItem<int>(
+              value: corte.numero,
+              child: Text(
+                'Corte ${corte.numero}',
+                style: const TextStyle(fontSize: 13),
+              ),
+            );
+          }).toList(),
+          onChanged: _periodoSeleccionado == null ? null : (int? newValue) {
+            setState(() {
+              _corteSeleccionado = newValue;
+            });
+            // Recargar estudiantes con el nuevo filtro
+            _loadStudents();
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateButton() {
+    return InkWell(
+      onTap: () async {
+        try {
+          final DateTime? picked = await showDatePicker(
+            context: context,
+            initialDate: _fechaSeleccionada ?? DateTime.now(),
+            firstDate: DateTime(2020),
+            lastDate: DateTime(2030),
+          );
+          if (picked != null) {
+            setState(() {
+              _fechaSeleccionada = picked;
+            });
+            // Aplicar filtro de fecha
+            _applySortAndFilter();
+          }
+        } catch (e) {
+          print('Error al abrir selector de fecha: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Error al abrir el calendario'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: _fechaSeleccionada != null 
+              ? const Color(0xFF3b82f6) 
+              : const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          Icons.calendar_today,
+          size: 20,
+          color: _fechaSeleccionada != null 
+              ? Colors.white 
+              : const Color(0xFF6B7280),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required VoidCallback onDelete,
+  }) {
+    return Chip(
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 12, color: Colors.white),
+      ),
+      deleteIcon: const Icon(Icons.close, size: 16, color: Colors.white),
+      onDeleted: onDelete,
+      backgroundColor: const Color(0xFF3b82f6),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 

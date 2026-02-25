@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 // import 'package:google_fonts/google_fonts.dart'; // Comentado temporalmente por error de red
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -26,6 +27,17 @@ class AsistenciaGuardApp extends StatelessWidget {
     return MaterialApp(
       title: 'AsistenciaGuard',
       debugShowCheckedModeBanner: false,
+      // Configuración de localización para widgets de fecha
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es', 'ES'), // Español
+        Locale('en', 'US'), // Inglés
+      ],
+      locale: const Locale('es', 'ES'),
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
