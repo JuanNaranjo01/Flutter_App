@@ -9,6 +9,9 @@ class AttendanceDetail {
   final bool? justificada;
   final String? horaInicioClase;
   final String? horaFinClase;
+  // ✅ NUEVO (27/02/2026): Horas de falta equivalentes
+  final double horasFaltaEquivalentes; // 0.0 para presente, calculado para tardanzas/ausencias
+  final String? descripcionEstado; // Ej: "Tardanza (20 minutos)", "Presente", "Ausente"
 
   AttendanceDetail({
     required this.id,
@@ -21,6 +24,8 @@ class AttendanceDetail {
     this.justificada,
     this.horaInicioClase,
     this.horaFinClase,
+    this.horasFaltaEquivalentes = 0.0,
+    this.descripcionEstado,
   });
 
   factory AttendanceDetail.fromJson(Map<String, dynamic> json) {
@@ -60,7 +65,15 @@ class AttendanceDetail {
     final estado = json['estado'] ?? 'ausente';
     final observacion = json['observacion'] ?? json['motivo_justificacion'];
     
-    print('📝 AttendanceDetail parseado: ID=$idAsistencia, Fecha=$fecha, Hora=$hora, Estado=$estado');
+    // ✅ NUEVO (27/02/2026): Horas de falta equivalentes y descripción del estado
+    final horasFaltaRaw = json['horas_falta_equivalentes'] ?? 0;
+    final horasFaltaEquivalentes = horasFaltaRaw is double 
+        ? horasFaltaRaw 
+        : (horasFaltaRaw is int ? horasFaltaRaw.toDouble() : 0.0);
+    
+    final descripcionEstado = json['descripcion_estado']?.toString();
+    
+    print('📝 AttendanceDetail parseado: ID=$idAsistencia, Fecha=$fecha, Hora=$hora, Estado=$estado, Horas Falta=$horasFaltaEquivalentes');
     
     return AttendanceDetail(
       id: idAsistencia is int ? idAsistencia : int.tryParse(idAsistencia.toString()) ?? 0,
@@ -75,12 +88,32 @@ class AttendanceDetail {
       justificada: json['justificada'] is bool ? json['justificada'] : null,
       horaInicioClase: json['hora_inicio_clase']?.toString() ?? json['hora_inicio']?.toString(),
       horaFinClase: json['hora_fin_clase']?.toString() ?? json['hora_fin']?.toString(),
+      horasFaltaEquivalentes: horasFaltaEquivalentes,
+      descripcionEstado: descripcionEstado,
     );
   }
 
   bool get isPresente => estado.toLowerCase() == 'presente';
   bool get isAusente => estado.toLowerCase() == 'ausente';
   bool get isTardanza => estado.toLowerCase() == 'tardanza';
+  
+  // ✅ NUEVO: Helper para mostrar descripción legible
+  String get descripcionAmigable {
+    if (descripcionEstado != null && descripcionEstado!.isNotEmpty) {
+      return descripcionEstado!;
+    }
+    
+    // Fallback si no viene del backend
+    if (isPresente) return 'Presente';
+    if (isAusente) return 'Ausente';
+    if (isTardanza && minutosTardanza != null) {
+      return 'Tardanza ($minutosTardanza minutos)';
+    }
+    return estado;
+  }
+  
+  // ✅ NUEVO: Indica si tiene faltas
+  bool get tieneFaltas => horasFaltaEquivalentes > 0;
 
   Map<String, dynamic> toJson() {
     return {
@@ -94,6 +127,8 @@ class AttendanceDetail {
       'justificada': justificada,
       'hora_inicio_clase': horaInicioClase,
       'hora_fin_clase': horaFinClase,
+      'horas_falta_equivalentes': horasFaltaEquivalentes,
+      'descripcion_estado': descripcionEstado,
     };
   }
 }

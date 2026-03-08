@@ -32,7 +32,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
   List<Periodo> _periodos = [];
   Periodo? _periodoSeleccionado;
   int? _corteSeleccionado;
-  DateTime? _fechaSeleccionada;
+  DateTime? _fechaSeleccionada; // ✅ NUEVO: Filtro por fecha específica
   bool _loadingPeriodos = false;
 
   @override
@@ -92,6 +92,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       int? anioFiltro;
       String? semestreFiltro;
       int? corteFiltro;
+      String? fechaFiltro; // ✅ NUEVO: Filtro por fecha
       
       if (_periodoSeleccionado != null) {
         anioFiltro = _periodoSeleccionado!.anio;
@@ -101,8 +102,13 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       if (_corteSeleccionado != null) {
         corteFiltro = _corteSeleccionado;
       }
+      
+      // ✅ NUEVO: Formatear fecha si está seleccionada (formato: YYYY-MM-DD)
+      if (_fechaSeleccionada != null) {
+        fechaFiltro = DateFormat('yyyy-MM-dd').format(_fechaSeleccionada!);
+      }
 
-      print('🔍 Filtros aplicados - Año: $anioFiltro, Semestre: $semestreFiltro, Corte: $corteFiltro');
+      print('🔍 Filtros aplicados - Año: $anioFiltro, Semestre: $semestreFiltro, Corte: $corteFiltro, Fecha: $fechaFiltro');
 
       // Llamar al servicio con los filtros
       final students = await ApiService.getCourseStudents(
@@ -111,6 +117,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         anio: anioFiltro,
         semestre: semestreFiltro,
         corte: corteFiltro,
+        fecha: fechaFiltro, // ✅ NUEVO: Pasar filtro de fecha
       );
 
       setState(() {
@@ -233,7 +240,6 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         'Ausencias',
         'Min. Tardanza',
         'Hrs. Perdidas',
-        'Faltas Total',
         '% Asistencia'
       ];
       
@@ -249,53 +255,12 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       // Llenar datos de estudiantes
       int rowIndex = 1;
       for (var student in _filteredStudents) {
-        // Obtener datos de tardanzas y calcular correctamente
-        int totalMinutosTardanza = 0;
-        int tardanzas = 0;
-        double horasPerdidasPorTardanza = 0.0;
-        int totalClases = student.totalClases;
-        int ausenciasReales = student.ausencias;
-        
-        try {
-          final attendanceData = await ApiService.getStudentAttendance(
-            sessionToken,
-            widget.course.id,
-            student.codigo,
-          );
-          
-          final attendanceList = attendanceData['attendance'] ?? [];
-          
-          // Contar tardanzas y minutos
-          for (var record in attendanceList) {
-            if (record != null && record.minutosTardanza != null && record.minutosTardanza! > 0) {
-              totalMinutosTardanza += (record.minutosTardanza as num).toInt();
-              tardanzas++;
-            }
-          }
-          
-          // Calcular horas perdidas como decimal (40 minutos = 1 hora de clase)
-          horasPerdidasPorTardanza = totalMinutosTardanza / 40.0;
-          
-          // Si el estudiante no tiene ningún registro (ni asistencias ni tardanzas)
-          // contar todas las clases como ausencias
-          if (student.asistencias == 0 && tardanzas == 0 && totalClases > 0) {
-            ausenciasReales = totalClases;
-          }
-          
-        } catch (e) {
-          // Si falla, verificar si no tiene registros
-          if (student.asistencias == 0 && totalClases > 0) {
-            ausenciasReales = totalClases;
-          }
-        }
-        
-        // Calcular porcentaje de asistencia correctamente
-        double porcentajeAsistencia = totalClases > 0 
-            ? (student.asistencias / totalClases) * 100 
-            : 0.0;
-        
-        // Faltas totales = ausencias + horas perdidas por tardanza
-        double faltasTotales = ausenciasReales + horasPerdidasPorTardanza;
+        // ✅ USAR DATOS DEL BACKEND DIRECTAMENTE (ya vienen calculados correctamente)
+        // El endpoint /api/teacher/course/:id/students ya retorna:
+        // - horas_faltadas: calculadas por el backend (incluye ausencias + tardanzas/60)
+        // - tardanzas: cantidad de tardanzas
+        // - minutos_tardanza: total de minutos acumulados
+        // - total_clases: total de clases en el rango filtrado
         
         // Insertar datos del estudiante
         List<dynamic> rowData = [
@@ -303,12 +268,11 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
           student.nombreCompleto,
           student.programa,
           student.asistencias,
-          tardanzas,
-          ausenciasReales,
-          totalMinutosTardanza,
-          horasPerdidasPorTardanza.toStringAsFixed(3),
-          faltasTotales.toStringAsFixed(3),
-          '${porcentajeAsistencia.toStringAsFixed(1)}%',
+          student.tardanzas,
+          student.ausencias,
+          student.minutosTardanza,
+          student.horasFaltadas,  // ⚠️ Double: incluye todo (ausencias + tardanzas)
+          '${student.porcentajeAsistencia.toStringAsFixed(1)}%',
         ];
         
         for (int i = 0; i < rowData.length; i++) {
@@ -883,8 +847,17 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                 child: _buildCorteDropdown(),
               ),
               const SizedBox(width: 8),
-              // Botón de fecha
-              _buildDateButton(),
+              // ✅ NUEVO: Botón para filtro de fecha específica
+              IconButton(
+                icon: Icon(
+                  Icons.calendar_today,
+                  color: _fechaSeleccionada != null 
+                      ? const Color(0xFF3b82f6) 
+                      : Colors.grey,
+                ),
+                tooltip: 'Filtrar por fecha específica',
+                onPressed: _mostrarSelectorFecha,
+              ),
             ],
           ),
           // Chips de filtros activos
@@ -912,18 +885,20 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                       onDelete: () {
                         setState(() {
                           _corteSeleccionado = null;
-                        _loadStudents();
                         });
+                        _loadStudents();
                       },
                     ),
+                  // ✅ NUEVO: Chip para fecha seleccionada
                   if (_fechaSeleccionada != null)
                     _buildFilterChip(
                       label: DateFormat('dd/MM/yyyy').format(_fechaSeleccionada!),
+                      icon: Icons.calendar_today,
                       onDelete: () {
                         setState(() {
-                        _applySortAndFilter();
                           _fechaSeleccionada = null;
                         });
+                        _loadStudents();
                       },
                     ),
                   // Botón para limpiar todos los filtros
@@ -931,10 +906,10 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                     onPressed: () {
                       setState(() {
                         _periodoSeleccionado = null;
-                      _loadStudents();
                         _corteSeleccionado = null;
-                        _fechaSeleccionada = null;
+                        _fechaSeleccionada = null; // ✅ NUEVO: Limpiar fecha
                       });
+                      _loadStudents();
                     },
                     icon: const Icon(Icons.clear_all, size: 16),
                     label: const Text('Limpiar filtros', style: TextStyle(fontSize: 12)),
@@ -1036,62 +1011,24 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
     );
   }
 
-  Widget _buildDateButton() {
-    return InkWell(
-      onTap: () async {
-        try {
-          final DateTime? picked = await showDatePicker(
-            context: context,
-            initialDate: _fechaSeleccionada ?? DateTime.now(),
-            firstDate: DateTime(2020),
-            lastDate: DateTime(2030),
-          );
-          if (picked != null) {
-            setState(() {
-              _fechaSeleccionada = picked;
-            });
-            // Aplicar filtro de fecha
-            _applySortAndFilter();
-          }
-        } catch (e) {
-          print('Error al abrir selector de fecha: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Error al abrir el calendario'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: _fechaSeleccionada != null 
-              ? const Color(0xFF3b82f6) 
-              : const Color(0xFFF3F4F6),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          Icons.calendar_today,
-          size: 20,
-          color: _fechaSeleccionada != null 
-              ? Colors.white 
-              : const Color(0xFF6B7280),
-        ),
-      ),
-    );
-  }
-
   Widget _buildFilterChip({
     required String label,
     required VoidCallback onDelete,
+    IconData? icon, // ✅ NUEVO: Icono opcional
   }) {
     return Chip(
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 12, color: Colors.white),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[  // ✅ NUEVO: Mostrar icono si está presente
+            Icon(icon, size: 14, color: Colors.white),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.white),
+          ),
+        ],
       ),
       deleteIcon: const Icon(Icons.close, size: 16, color: Colors.white),
       onDeleted: onDelete,
@@ -1174,6 +1111,11 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       ),
       child: InkWell(
         onTap: () {
+          // ✅ NUEVO: Pasar filtros actuales al detalle del estudiante
+          final fechaFormateada = _fechaSeleccionada != null
+              ? DateFormat('yyyy-MM-dd').format(_fechaSeleccionada!)
+              : null;
+          
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -1181,6 +1123,10 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                 course: widget.course,
                 studentCode: student.codigo,
                 studentName: student.nombreCompleto,
+                anio: _periodoSeleccionado?.anio,
+                semestre: _periodoSeleccionado?.semestre,
+                corte: _corteSeleccionado,
+                fecha: fechaFormateada,
               ),
             ),
           );
@@ -1256,33 +1202,60 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              // ✅ ACTUALIZADO (27/02/2026): Mostrar asistencias totales y separar presentes/tardanzas
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _buildStatChip(
                     icon: Icons.check_circle,
-                    label: '${student.asistencias} asistencias',
+                    label: '${student.asistenciasTotales}',
+                    subLabel: 'Asistencias',
                     color: Colors.green,
                   ),
                   _buildStatChip(
+                    icon: Icons.access_time,
+                    label: '${student.tardanzas}',
+                    subLabel: 'Tarde',
+                    color: Colors.orange,
+                  ),
+                  _buildStatChip(
                     icon: Icons.cancel,
-                    label: '${student.ausencias} ausencias',
+                    label: '${student.totalFaltas}',
+                    subLabel: 'Faltas',
                     color: Colors.red,
                   ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Horas faltadas - Prominente
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: Colors.red[50],
                       borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${student.porcentajeAsistencia.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
+                      border: Border.all(
+                        color: Colors.red[300]!,
+                        width: 1,
                       ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.hourglass_empty, size: 14, color: Colors.red[700]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${student.horasFaltadas}h',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.red[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -1297,22 +1270,71 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
   Widget _buildStatChip({
     required IconData icon,
     required String label,
+    String? subLabel,
     required Color color,
   }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Column(
       children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: color,
-            fontWeight: FontWeight.w500,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
+        if (subLabel != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            subLabel,
+            style: TextStyle(
+              fontSize: 10,
+              color: color.withOpacity(0.8),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ],
     );
+  }
+
+  /// ✅ NUEVO: Muestra un selector de fecha para filtrar asistencias
+  Future<void> _mostrarSelectorFecha() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _fechaSeleccionada ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      helpText: 'Seleccionar fecha',
+      cancelText: 'Cancelar',
+      confirmText: 'Aceptar',
+      locale: const Locale('es', 'ES'),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF3b82f6),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != _fechaSeleccionada) {
+      setState(() {
+        _fechaSeleccionada = picked;
+      });
+      _loadStudents();
+    }
   }
 }

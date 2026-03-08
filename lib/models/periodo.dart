@@ -53,11 +53,13 @@ class Corte {
   final int numero;
   final String fechaInicio;
   final String fechaFin;
+  final String? nombre; // ✅ NUEVO (27/02/2026): Nombre del corte ("Corte 1", "Corte 2", etc.)
 
   Corte({
     required this.numero,
     required this.fechaInicio,
     required this.fechaFin,
+    this.nombre,
   });
 
   factory Corte.fromJson(Map<String, dynamic> json) {
@@ -65,6 +67,7 @@ class Corte {
       numero: json['numero'] ?? 0,
       fechaInicio: json['fecha_inicio'] ?? '',
       fechaFin: json['fecha_fin'] ?? '',
+      nombre: json['nombre']?.toString(),
     );
   }
 
@@ -73,8 +76,12 @@ class Corte {
       'numero': numero,
       'fecha_inicio': fechaInicio,
       'fecha_fin': fechaFin,
+      if (nombre != null) 'nombre': nombre,
     };
   }
+  
+  // ✅ NUEVO: Helper para mostrar el nombre del corte
+  String get nombreAmigable => nombre ?? 'Corte $numero';
 }
 
 class PeriodoActual {

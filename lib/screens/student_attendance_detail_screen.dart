@@ -10,12 +10,21 @@ class StudentAttendanceDetailScreen extends StatefulWidget {
   final Course course;
   final String studentCode;
   final String studentName;
+  // ✅ NUEVOS: Parámetros opcionales de filtro
+  final int? anio;
+  final String? semestre;
+  final int? corte;
+  final String? fecha; // Formato: YYYY-MM-DD
 
   const StudentAttendanceDetailScreen({
     super.key,
     required this.course,
     required this.studentCode,
     required this.studentName,
+    this.anio,
+    this.semestre,
+    this.corte,
+    this.fecha,
   });
 
   @override
@@ -55,28 +64,57 @@ class _StudentAttendanceDetailScreenState
 
       final Map<String, dynamic> data;
       if (onlyAbsences) {
+        // ✅ NUEVO: Llamada con filtros opcionales
         data = await ApiService.getStudentAbsences(
           sessionToken,
           widget.course.id,
           widget.studentCode,
+          anio: widget.anio,
+          semestre: widget.semestre,
+          corte: widget.corte,
+          fecha: widget.fecha,
         );
-        _attendanceList =
-            (data['absences'] as List<AttendanceDetail>?) ?? [];
+        // El servicio ya regresa List<AttendanceDetail>
+        final absencesData = data['absences'];
+        _attendanceList = absencesData is List
+            ? List<AttendanceDetail>.from(absencesData)
+            : [];
       } else {
+        // ✅ NUEVO: Llamada con filtros opcionales
         data = await ApiService.getStudentAttendance(
           sessionToken,
           widget.course.id,
           widget.studentCode,
+          anio: widget.anio,
+          semestre: widget.semestre,
+          corte: widget.corte,
+          fecha: widget.fecha,
         );
-        _attendanceList =
-            (data['attendance'] as List<AttendanceDetail>?) ?? [];
+        // El servicio ya regresa List<AttendanceDetail>
+        final attendanceData = data['attendance'];
+        _attendanceList = attendanceData is List
+            ? List<AttendanceDetail>.from(attendanceData)
+            : [];
       }
 
       setState(() {
-        _summary = data['summary'] ?? {};
-        _studentInfo = data['student'] ?? {};
+        // Convertir explícitamente Map<dynamic, dynamic> a Map<String, dynamic>
+        final summaryData = data['summary'] ?? data['resumen'] ?? {};
+        final studentData = data['student'] ?? data['estudiante'] ?? {};
+        
+        _summary = summaryData is Map
+            ? Map<String, dynamic>.from(summaryData)
+            : {};
+        _studentInfo = studentData is Map
+            ? Map<String, dynamic>.from(studentData)
+            : {};
         _isLoading = false;
       });
+      
+      // ✅ Lista vacía es válida (el estudiante puede no tener registros aún)
+      if (_attendanceList.isEmpty) {
+        print('ℹ️ El estudiante no tiene registros de asistencia todavía');
+      }
     } catch (e) {
       String friendlyMessage = 'No se pudo cargar el historial de asistencia';
       
@@ -90,11 +128,13 @@ class _StudentAttendanceDetailScreenState
         friendlyMessage = 'El servidor tardó demasiado en responder. Intenta nuevamente.';
       } else if (errorStr.contains('404')) {
         friendlyMessage = 'No se encontró información de este estudiante.';
-      } else if (errorStr.contains('type') && errorStr.contains('subtype')) {
-        friendlyMessage = 'Error al procesar los datos. El estudiante no tiene registros de asistencia.';
       } else if (errorStr.contains('500') || errorStr.contains('error del servidor')) {
         friendlyMessage = 'Error en el servidor. Intenta más tarde.';
       }
+      
+      // 🐛 DEBUG: Mostrar error completo en consola para diagnóstico
+      print('❌ Error completo al cargar asistencias: $e');
+      print('📍 Stack trace disponible para revisar');
       
       setState(() {
         _errorMessage = friendlyMessage;
@@ -254,7 +294,10 @@ class _StudentAttendanceDetailScreenState
   Widget _buildSummarySection() {
     if (_summary.isEmpty) return const SizedBox.shrink();
 
-    final totalAsistencias = _summary['asistencias'] ?? _summary['presentes'] ?? 0;
+    // ✅ ACTUALIZADO (27/02/2026): Nuevos campos del backend
+    final asistenciasTotales = _summary['asistencias_totales'] ?? 
+                               _summary['asistencias'] ?? 
+                               _summary['presentes'] ?? 0;
     final totalAusencias = _summary['ausencias'] ?? _summary['ausentes'] ?? 0;
     final totalClases = _summary['total_clases'] ?? 0;
     final totalTardanzas = _summary['tardanzas'] ?? 0;
@@ -265,13 +308,13 @@ class _StudentAttendanceDetailScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Primera fila: Total de clases y Asistencias
+          // Primera fila: Total clases y Asistencias
           Row(
             children: [
               Expanded(
                 child: _buildStatCard(
                   icon: Icons.class_,
-                  label: 'Total de clases',
+                  label: 'Total clases',
                   value: totalClases.toString(),
                   color: Colors.blue,
                 ),
@@ -281,20 +324,20 @@ class _StudentAttendanceDetailScreenState
                 child: _buildStatCard(
                   icon: Icons.check_circle,
                   label: 'Asistencias',
-                  value: totalAsistencias.toString(),
+                  value: asistenciasTotales.toString(),
                   color: Colors.green,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          // Segunda fila: Ausencias y Tardanzas
+          // Segunda fila: Faltas y Tardanzas
           Row(
             children: [
               Expanded(
                 child: _buildStatCard(
                   icon: Icons.cancel,
-                  label: 'Ausencias',
+                  label: 'Faltas',
                   value: totalAusencias.toString(),
                   color: Colors.red,
                 ),
@@ -303,7 +346,7 @@ class _StudentAttendanceDetailScreenState
               Expanded(
                 child: _buildStatCard(
                   icon: Icons.schedule,
-                  label: 'Tardanzas',
+                  label: 'Tarde',
                   value: totalTardanzas.toString(),
                   color: Colors.orange,
                 ),
@@ -320,6 +363,7 @@ class _StudentAttendanceDetailScreenState
     required String label,
     required String value,
     required Color color,
+    String? subtitle, // ✅ NUEVO (27/02/2026): Subtítulo opcional
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -361,6 +405,18 @@ class _StudentAttendanceDetailScreenState
               color: color,
             ),
           ),
+          // ✅ NUEVO: Mostrar subtítulo si existe
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -586,6 +642,32 @@ class _StudentAttendanceDetailScreenState
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.orange[700],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  // ✅ NUEVO (27/02/2026): Mostrar horas de falta equivalentes
+                  if (record.tieneFaltas) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.hourglass_empty, size: 12, color: Colors.red[700]),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${record.horasFaltaEquivalentes} hrs falta',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.red[700],
                               fontWeight: FontWeight.w600,
                             ),
                           ),
