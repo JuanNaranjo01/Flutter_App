@@ -195,7 +195,7 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                 ),
                 child: SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 56, 24, 16),
+                    padding: const EdgeInsets.fromLTRB(24, 50, 24, 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -229,11 +229,11 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           'Gestión de cursos y estudiantes',
                           style: const TextStyle(
-                            color: Color(0xFFE9D5FF),
+                            color: Color(0xFFE8F5E9),
                             fontSize: 13,
                             height: 1.3,
                           ),

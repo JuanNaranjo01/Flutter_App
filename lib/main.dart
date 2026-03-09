@@ -25,7 +25,7 @@ class AsistenciaGuardApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AsistenciaGuard',
+      title: 'Synkro Asis',
       debugShowCheckedModeBanner: false,
       // Configuración de localización para widgets de fecha
       localizationsDelegates: const [
@@ -83,6 +83,12 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _selectedIndex = index;
     });
+
+    // ✅ Actualizar datos cuando se navega a Inicio (Dashboard)
+    if (index == 0) {
+      final dataProvider = Provider.of<DataProvider>(context, listen: false);
+      dataProvider.refreshAttendanceRecords();
+    }
   }
 
   @override

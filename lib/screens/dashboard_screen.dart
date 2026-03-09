@@ -3,8 +3,41 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/data_provider.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen>
+    with AutomaticKeepAliveClientMixin {
+  bool _isRefreshing = false;
+
+  @override
+  bool get wantKeepAlive => true; // Mantener el estado cuando se cambia de tab
+
+  @override
+  void initState() {
+    super.initState();
+    // Cargar datos al inicializar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshData();
+    });
+  }
+
+  Future<void> _refreshData() async {
+    if (_isRefreshing) return;
+
+    setState(() => _isRefreshing = true);
+
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    await dataProvider.refreshAttendanceRecords();
+
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+    }
+  }
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
@@ -44,6 +77,8 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Necesario para AutomaticKeepAliveClientMixin
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: Consumer<DataProvider>(
@@ -136,6 +171,28 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
                 actions: [
+                  // Botón de refresh
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: IconButton(
+                      icon: _isRefreshing
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.refresh, size: 24),
+                      onPressed: _isRefreshing ? null : _refreshData,
+                      tooltip: 'Actualizar datos',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.15),
+                      ),
+                    ),
+                  ),
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: IconButton(
@@ -229,34 +286,12 @@ class DashboardScreen extends StatelessWidget {
                             ],
                           );
 
-                    Widget chart = _buildTrendChart(data);
-
-                    Widget activityFaces = isWide
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                  flex: 2, child: _buildActivityCard(data)),
-                              const SizedBox(width: 12),
-                              Expanded(flex: 1, child: _buildFacesCard(data)),
-                            ],
-                          )
-                        : Column(
-                            children: [
-                              _buildActivityCard(data),
-                              const SizedBox(height: 12),
-                              _buildFacesCard(data),
-                            ],
-                          );
-
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         statsSection,
-                        const SizedBox(height: 16),
-                        chart,
-                        const SizedBox(height: 16),
-                        activityFaces,
+                        const SizedBox(height: 24),
+                        _buildActivityCard(data),
                       ],
                     );
                   }),
@@ -320,6 +355,8 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
+  // ❌ FUNCIÓN NO UTILIZADA - Comentada para simplificar interfaz
+  /*
   Widget _buildTrendChart(DataProvider data) {
     final dateMap = <String, Map<String, int>>{};
     for (var record in data.attendanceRecords) {
@@ -452,6 +489,7 @@ class DashboardScreen extends StatelessWidget {
       ),
     );
   }
+  */
 
   Widget _buildActivityCard(DataProvider data) {
     final recentActivity = data.attendanceRecords.reversed.take(7).toList();
@@ -550,6 +588,8 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
+  // ❌ FUNCIÓN NO UTILIZADA - Comentada para simplificar interfaz
+  /*
   Widget _buildFacesCard(DataProvider data) {
     final faces = data.registeredFaces;
     return Container(
@@ -640,4 +680,5 @@ class DashboardScreen extends StatelessWidget {
       ]),
     );
   }
+  */
 }

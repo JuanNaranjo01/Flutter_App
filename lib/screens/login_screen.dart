@@ -245,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   const Text(
-                    'AsistenciaGuard',
+                    'Synkro Asis',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 40,
@@ -391,7 +391,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Footer
                   const Text(
-                    '© 2025 AsistenciaGuard - UCEVA',
+                    '© 2025 Synkro Asis - UCEVA',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,

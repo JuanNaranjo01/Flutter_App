@@ -344,7 +344,7 @@ class _AttendanceRegistrationScreenState
                 _captureFramesAndRegister();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3b82f6),
+                backgroundColor: const Color(0xFF007f2f),
                 foregroundColor: Colors.white,
               ),
               child: const Text('Reintentar'),
@@ -365,7 +365,7 @@ class _AttendanceRegistrationScreenState
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3b82f6),
+                backgroundColor: const Color(0xFF007f2f),
                 foregroundColor: Colors.white,
               ),
               child: const Text('Ir a Login'),
@@ -398,8 +398,8 @@ class _AttendanceRegistrationScreenState
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color(0xFF10B981),
-                      Color(0xFF059669),
+                      Color(0xFF007f2f), // Verde corporativo UCEVA
+                      Color(0xFF009938),
                     ],
                   ),
                 ),
@@ -422,7 +422,7 @@ class _AttendanceRegistrationScreenState
                         Text(
                           'Reconocimiento facial automático',
                           style: TextStyle(
-                            color: Color(0xFFD1FAE5),
+                            color: Color(0xFFE8F5E9),
                             fontSize: 14,
                           ),
                         ),
@@ -657,7 +657,7 @@ class _AttendanceRegistrationScreenState
                               ? null
                               : _captureFramesAndRegister,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
+                            backgroundColor: const Color(0xFF007f2f),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),

@@ -101,41 +101,47 @@ class _StudentAttendanceDetailScreenState
         // Convertir explícitamente Map<dynamic, dynamic> a Map<String, dynamic>
         final summaryData = data['summary'] ?? data['resumen'] ?? {};
         final studentData = data['student'] ?? data['estudiante'] ?? {};
-        
-        _summary = summaryData is Map
-            ? Map<String, dynamic>.from(summaryData)
-            : {};
-        _studentInfo = studentData is Map
-            ? Map<String, dynamic>.from(studentData)
-            : {};
+
+        _summary =
+            summaryData is Map ? Map<String, dynamic>.from(summaryData) : {};
+        _studentInfo =
+            studentData is Map ? Map<String, dynamic>.from(studentData) : {};
         _isLoading = false;
       });
-      
+
       // ✅ Lista vacía es válida (el estudiante puede no tener registros aún)
       if (_attendanceList.isEmpty) {
         print('ℹ️ El estudiante no tiene registros de asistencia todavía');
       }
     } catch (e) {
       String friendlyMessage = 'No se pudo cargar el historial de asistencia';
-      
+
       // Convertir errores técnicos en mensajes amigables
       final errorStr = e.toString().toLowerCase();
-      if (errorStr.contains('sesión') || errorStr.contains('session') || errorStr.contains('401')) {
-        friendlyMessage = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.';
-      } else if (errorStr.contains('conexión') || errorStr.contains('connection') || errorStr.contains('socket')) {
-        friendlyMessage = 'No se pudo conectar al servidor. Verifica tu conexión a internet.';
+      if (errorStr.contains('sesión') ||
+          errorStr.contains('session') ||
+          errorStr.contains('401')) {
+        friendlyMessage =
+            'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.';
+      } else if (errorStr.contains('conexión') ||
+          errorStr.contains('connection') ||
+          errorStr.contains('socket')) {
+        friendlyMessage =
+            'No se pudo conectar al servidor. Verifica tu conexión a internet.';
       } else if (errorStr.contains('timeout')) {
-        friendlyMessage = 'El servidor tardó demasiado en responder. Intenta nuevamente.';
+        friendlyMessage =
+            'El servidor tardó demasiado en responder. Intenta nuevamente.';
       } else if (errorStr.contains('404')) {
         friendlyMessage = 'No se encontró información de este estudiante.';
-      } else if (errorStr.contains('500') || errorStr.contains('error del servidor')) {
+      } else if (errorStr.contains('500') ||
+          errorStr.contains('error del servidor')) {
         friendlyMessage = 'Error en el servidor. Intenta más tarde.';
       }
-      
+
       // 🐛 DEBUG: Mostrar error completo en consola para diagnóstico
       print('❌ Error completo al cargar asistencias: $e');
       print('📍 Stack trace disponible para revisar');
-      
+
       setState(() {
         _errorMessage = friendlyMessage;
         _isLoading = false;
@@ -162,19 +168,33 @@ class _StudentAttendanceDetailScreenState
             ),
             Text(
               widget.course.nombre,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.normal),
+              style:
+                  const TextStyle(fontSize: 11, fontWeight: FontWeight.normal),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1F2937),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF007f2f), // Verde corporativo UCEVA
+                Color(0xFF009938),
+              ],
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => _loadAttendanceData(onlyAbsences: _showOnlyAbsences),
+            onPressed: () =>
+                _loadAttendanceData(onlyAbsences: _showOnlyAbsences),
             tooltip: 'Actualizar',
           ),
         ],
@@ -191,8 +211,7 @@ class _StudentAttendanceDetailScreenState
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Cargando historial...', 
-              style: TextStyle(color: Colors.grey)),
+            Text('Cargando historial...', style: TextStyle(color: Colors.grey)),
           ],
         ),
       );
@@ -205,8 +224,7 @@ class _StudentAttendanceDetailScreenState
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, 
-                size: 64, color: Colors.red),
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
               Text(
                 _errorMessage!,
@@ -215,12 +233,12 @@ class _StudentAttendanceDetailScreenState
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: () => _loadAttendanceData(
-                  onlyAbsences: _showOnlyAbsences),
+                onPressed: () =>
+                    _loadAttendanceData(onlyAbsences: _showOnlyAbsences),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Reintentar'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3b82f6),
+                  backgroundColor: const Color(0xFF007f2f),
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -258,7 +276,7 @@ class _StudentAttendanceDetailScreenState
               label: const Text('Todo'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: !_showOnlyAbsences
-                    ? const Color(0xFF3b82f6)
+                    ? const Color(0xFF007f2f)
                     : Colors.grey[300],
                 foregroundColor:
                     !_showOnlyAbsences ? Colors.white : Colors.grey[600],
@@ -276,9 +294,8 @@ class _StudentAttendanceDetailScreenState
               icon: const Icon(Icons.warning, size: 18),
               label: const Text('Solo Ausencias'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _showOnlyAbsences
-                    ? Colors.red
-                    : Colors.grey[300],
+                backgroundColor:
+                    _showOnlyAbsences ? Colors.red : Colors.grey[300],
                 foregroundColor:
                     _showOnlyAbsences ? Colors.white : Colors.grey[600],
                 elevation: _showOnlyAbsences ? 2 : 0,
@@ -295,9 +312,10 @@ class _StudentAttendanceDetailScreenState
     if (_summary.isEmpty) return const SizedBox.shrink();
 
     // ✅ ACTUALIZADO (27/02/2026): Nuevos campos del backend
-    final asistenciasTotales = _summary['asistencias_totales'] ?? 
-                               _summary['asistencias'] ?? 
-                               _summary['presentes'] ?? 0;
+    final asistenciasTotales = _summary['asistencias_totales'] ??
+        _summary['asistencias'] ??
+        _summary['presentes'] ??
+        0;
     final totalAusencias = _summary['ausencias'] ?? _summary['ausentes'] ?? 0;
     final totalClases = _summary['total_clases'] ?? 0;
     final totalTardanzas = _summary['tardanzas'] ?? 0;
@@ -316,7 +334,7 @@ class _StudentAttendanceDetailScreenState
                   icon: Icons.class_,
                   label: 'Total clases',
                   value: totalClases.toString(),
-                  color: Colors.blue,
+                  color: const Color(0xFF007f2f),
                 ),
               ),
               const SizedBox(width: 12),
@@ -432,13 +450,11 @@ class _StudentAttendanceDetailScreenState
             Icon(
               _showOnlyAbsences ? Icons.check_circle_outline : Icons.event_note,
               size: 80,
-              color: _showOnlyAbsences ? Colors.green : Colors.blue,
+              color: _showOnlyAbsences ? Colors.green : const Color(0xFF007f2f),
             ),
             const SizedBox(height: 24),
             Text(
-              _showOnlyAbsences
-                  ? '¡Excelente!'
-                  : 'Sin Registros',
+              _showOnlyAbsences ? '¡Excelente!' : 'Sin Registros',
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -458,13 +474,15 @@ class _StudentAttendanceDetailScreenState
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => _loadAttendanceData(onlyAbsences: _showOnlyAbsences),
+              onPressed: () =>
+                  _loadAttendanceData(onlyAbsences: _showOnlyAbsences),
               icon: const Icon(Icons.refresh),
               label: const Text('Actualizar'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3B82F6),
+                backgroundColor: const Color(0xFF007f2f),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
             ),
           ],
@@ -528,7 +546,7 @@ class _StudentAttendanceDetailScreenState
     final Color statusColor;
     final IconData statusIcon;
     final String statusText;
-    
+
     if (record.isPresente) {
       statusColor = Colors.green;
       statusIcon = Icons.check_circle;
@@ -591,8 +609,8 @@ class _StudentAttendanceDetailScreenState
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      Icon(Icons.access_time, 
-                        size: 14, color: Colors.grey[600]),
+                      Icon(Icons.access_time,
+                          size: 14, color: Colors.grey[600]),
                       const SizedBox(width: 4),
                       Text(
                         formattedTime,
@@ -603,7 +621,8 @@ class _StudentAttendanceDetailScreenState
                       ),
                     ],
                   ),
-                  if (record.asignatura != null && record.asignatura!.isNotEmpty) ...[
+                  if (record.asignatura != null &&
+                      record.asignatura!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Row(
                       children: [
@@ -627,7 +646,8 @@ class _StudentAttendanceDetailScreenState
                   if (record.isTardanza && record.minutosTardanza != null) ...[
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.orange.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -635,7 +655,8 @@ class _StudentAttendanceDetailScreenState
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.timer, size: 12, color: Colors.orange[700]),
+                          Icon(Icons.timer,
+                              size: 12, color: Colors.orange[700]),
                           const SizedBox(width: 4),
                           Text(
                             '${record.minutosTardanza} min de retraso',
@@ -653,7 +674,8 @@ class _StudentAttendanceDetailScreenState
                   if (record.tieneFaltas) ...[
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.red.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -661,7 +683,8 @@ class _StudentAttendanceDetailScreenState
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.hourglass_empty, size: 12, color: Colors.red[700]),
+                          Icon(Icons.hourglass_empty,
+                              size: 12, color: Colors.red[700]),
                           const SizedBox(width: 4),
                           Text(
                             '${record.horasFaltaEquivalentes} hrs falta',
@@ -678,21 +701,23 @@ class _StudentAttendanceDetailScreenState
                   if (record.justificada == true) ...[
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: const Color(0xFFE8F5E9),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.verified, size: 12, color: Colors.blue[700]),
+                          const Icon(Icons.verified,
+                              size: 12, color: Color(0xFF007f2f)),
                           const SizedBox(width: 4),
-                          Text(
+                          const Text(
                             'Justificada',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.blue[700],
+                              color: Color(0xFF1B5E20),
                               fontWeight: FontWeight.w600,
                             ),
                           ),

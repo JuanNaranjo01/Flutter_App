@@ -50,7 +50,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
     try {
       final periodos = await ApiService.getPeriodos();
       final periodoActual = await ApiService.getPeriodoActual();
-      
+
       setState(() {
         _periodos = periodos;
         // Pre-seleccionar el periodo actual si existe
@@ -93,22 +93,23 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       String? semestreFiltro;
       int? corteFiltro;
       String? fechaFiltro; // ✅ NUEVO: Filtro por fecha
-      
+
       if (_periodoSeleccionado != null) {
         anioFiltro = _periodoSeleccionado!.anio;
         semestreFiltro = _periodoSeleccionado!.semestre;
       }
-      
+
       if (_corteSeleccionado != null) {
         corteFiltro = _corteSeleccionado;
       }
-      
+
       // ✅ NUEVO: Formatear fecha si está seleccionada (formato: YYYY-MM-DD)
       if (_fechaSeleccionada != null) {
         fechaFiltro = DateFormat('yyyy-MM-dd').format(_fechaSeleccionada!);
       }
 
-      print('🔍 Filtros aplicados - Año: $anioFiltro, Semestre: $semestreFiltro, Corte: $corteFiltro, Fecha: $fechaFiltro');
+      print(
+          '🔍 Filtros aplicados - Año: $anioFiltro, Semestre: $semestreFiltro, Corte: $corteFiltro, Fecha: $fechaFiltro');
 
       // Llamar al servicio con los filtros
       final students = await ApiService.getCourseStudents(
@@ -128,21 +129,29 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       });
     } catch (e) {
       String friendlyMessage = 'No se pudieron cargar los estudiantes';
-      
+
       // Convertir errores técnicos en mensajes amigables
       final errorStr = e.toString().toLowerCase();
-      if (errorStr.contains('sesión') || errorStr.contains('session') || errorStr.contains('401')) {
-        friendlyMessage = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.';
-      } else if (errorStr.contains('conexión') || errorStr.contains('connection') || errorStr.contains('socket')) {
-        friendlyMessage = 'No se pudo conectar al servidor. Verifica tu conexión a internet.';
+      if (errorStr.contains('sesión') ||
+          errorStr.contains('session') ||
+          errorStr.contains('401')) {
+        friendlyMessage =
+            'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.';
+      } else if (errorStr.contains('conexión') ||
+          errorStr.contains('connection') ||
+          errorStr.contains('socket')) {
+        friendlyMessage =
+            'No se pudo conectar al servidor. Verifica tu conexión a internet.';
       } else if (errorStr.contains('timeout')) {
-        friendlyMessage = 'El servidor tardó demasiado en responder. Intenta nuevamente.';
+        friendlyMessage =
+            'El servidor tardó demasiado en responder. Intenta nuevamente.';
       } else if (errorStr.contains('404')) {
         friendlyMessage = 'El curso no se encontró en el sistema.';
-      } else if (errorStr.contains('500') || errorStr.contains('error del servidor')) {
+      } else if (errorStr.contains('500') ||
+          errorStr.contains('error del servidor')) {
         friendlyMessage = 'Error en el servidor. Intenta más tarde.';
       }
-      
+
       setState(() {
         _errorMessage = friendlyMessage;
         _isLoading = false;
@@ -165,16 +174,15 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       // Ordenar
       switch (_sortBy) {
         case 'nombre':
-          _filteredStudents.sort((a, b) => 
-            a.nombreCompleto.compareTo(b.nombreCompleto));
+          _filteredStudents
+              .sort((a, b) => a.nombreCompleto.compareTo(b.nombreCompleto));
           break;
         case 'asistencia':
-          _filteredStudents.sort((a, b) => 
-            b.porcentajeAsistencia.compareTo(a.porcentajeAsistencia));
+          _filteredStudents.sort((a, b) =>
+              b.porcentajeAsistencia.compareTo(a.porcentajeAsistencia));
           break;
         case 'ausencias':
-          _filteredStudents.sort((a, b) => 
-            b.ausencias.compareTo(a.ausencias));
+          _filteredStudents.sort((a, b) => b.ausencias.compareTo(a.ausencias));
           break;
       }
     });
@@ -214,7 +222,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       // Crear archivo Excel
       var excel = excel_lib.Excel.createExcel();
       excel_lib.Sheet sheetObject = excel['Asistencias'];
-      
+
       // Definir estilos
       excel_lib.CellStyle headerStyle = excel_lib.CellStyle(
         backgroundColorHex: excel_lib.ExcelColor.fromHexString('#4472C4'),
@@ -224,7 +232,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         horizontalAlign: excel_lib.HorizontalAlign.Center,
         verticalAlign: excel_lib.VerticalAlign.Center,
       );
-      
+
       excel_lib.CellStyle dataStyle = excel_lib.CellStyle(
         fontSize: 11,
         verticalAlign: excel_lib.VerticalAlign.Center,
@@ -242,12 +250,11 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         'Hrs. Perdidas',
         '% Asistencia'
       ];
-      
+
       // Insertar encabezados
       for (int i = 0; i < headers.length; i++) {
         var cell = sheetObject.cell(
-          excel_lib.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0)
-        );
+            excel_lib.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
         cell.value = excel_lib.TextCellValue(headers[i]);
         cell.cellStyle = headerStyle;
       }
@@ -261,7 +268,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         // - tardanzas: cantidad de tardanzas
         // - minutos_tardanza: total de minutos acumulados
         // - total_clases: total de clases en el rango filtrado
-        
+
         // Insertar datos del estudiante
         List<dynamic> rowData = [
           student.codigo,
@@ -271,15 +278,15 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
           student.tardanzas,
           student.ausencias,
           student.minutosTardanza,
-          student.horasFaltadas,  // ⚠️ Double: incluye todo (ausencias + tardanzas)
+          student
+              .horasFaltadas, // ⚠️ Double: incluye todo (ausencias + tardanzas)
           '${student.porcentajeAsistencia.toStringAsFixed(1)}%',
         ];
-        
+
         for (int i = 0; i < rowData.length; i++) {
-          var cell = sheetObject.cell(
-            excel_lib.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: rowIndex)
-          );
-          
+          var cell = sheetObject.cell(excel_lib.CellIndex.indexByColumnRow(
+              columnIndex: i, rowIndex: rowIndex));
+
           if (rowData[i] is String) {
             cell.value = excel_lib.TextCellValue(rowData[i]);
           } else if (rowData[i] is int) {
@@ -289,13 +296,13 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
           } else {
             cell.value = excel_lib.TextCellValue(rowData[i].toString());
           }
-          
+
           cell.cellStyle = dataStyle;
         }
-        
+
         rowIndex++;
       }
-      
+
       // Ajustar ancho de columnas
       for (int i = 0; i < headers.length; i++) {
         sheetObject.setColumnWidth(i, 15);
@@ -313,7 +320,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       // Guardar archivo en Downloads
       Directory? directory;
       String? downloadsPath;
-      
+
       if (Platform.isAndroid) {
         directory = Directory('/storage/emulated/0/Download');
         if (!await directory.exists()) {
@@ -327,16 +334,16 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         directory = await getApplicationDocumentsDirectory();
         downloadsPath = directory.path;
       }
-      
+
       // Limpiar el nombre del curso para usarlo como nombre de archivo
       String cleanCourseName = widget.course.nombre
           .replaceAll(RegExp(r'[^a-zA-Z0-9_\-\s]'), '')
           .replaceAll(RegExp(r'\s+'), '_')
           .trim();
-      
+
       final filename = '$cleanCourseName.xlsx';
       final path = '${downloadsPath}/$filename';
-      
+
       // Guardar archivo
       List<int>? fileBytes = excel.save();
       if (fileBytes != null) {
@@ -364,7 +371,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                     color: Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                  child: const Icon(Icons.check_circle,
+                      color: Colors.green, size: 28),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -382,12 +390,14 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.table_chart, color: Colors.green[600], size: 20),
+                      Icon(Icons.table_chart,
+                          color: Colors.green[600], size: 20),
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
                           'Tabla de asistencias exportada exitosamente',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w500),
                         ),
                       ),
                     ],
@@ -425,35 +435,40 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.blue[50],
+                      color: const Color(0xFFE8F5E9),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue[200]!),
+                      border: Border.all(color: const Color(0xFF007f2f)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.info_outline, size: 20, color: Colors.blue[700]),
+                            const Icon(Icons.info_outline,
+                                size: 20, color: Color(0xFF007f2f)),
                             const SizedBox(width: 8),
-                            Text(
+                            const Text(
                               '¿Dónde encontrarlo?',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blue[900],
+                                color: Color(0xFF1B5E20),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
                         if (Platform.isAndroid) ...[
-                          _buildLocationStep('1', 'Abre la app "Archivos" de tu celular'),
-                          _buildLocationStep('2', 'Ve a "Descargas" o "Downloads"'),
+                          _buildLocationStep(
+                              '1', 'Abre la app "Archivos" de tu celular'),
+                          _buildLocationStep(
+                              '2', 'Ve a "Descargas" o "Downloads"'),
                           _buildLocationStep('3', 'Busca: $filename'),
-                          _buildLocationStep('4', 'Ábrelo con Excel, Sheets o WPS Office'),
+                          _buildLocationStep(
+                              '4', 'Ábrelo con Excel, Sheets o WPS Office'),
                         ] else ...[
-                          _buildLocationStep('1', 'Revisa la carpeta de documentos'),
+                          _buildLocationStep(
+                              '1', 'Revisa la carpeta de documentos'),
                           _buildLocationStep('2', 'Abre con Excel o Numbers'),
                         ],
                       ],
@@ -476,7 +491,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       if (mounted && Navigator.canPop(context)) {
         Navigator.pop(context);
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -499,8 +514,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
           Container(
             width: 24,
             height: 24,
-            decoration: BoxDecoration(
-              color: Colors.blue[700],
+            decoration: const BoxDecoration(
+              color: Color(0xFF007f2f),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -541,16 +556,29 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Estudiantes', 
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const Text('Estudiantes',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             Text(
               widget.course.nombre,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1F2937),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF007f2f), // Verde corporativo UCEVA
+                Color(0xFF009938),
+              ],
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
@@ -572,14 +600,16 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                 value: 'nombre',
                 child: Row(
                   children: [
-                    Icon(Icons.sort_by_alpha, 
-                      color: _sortBy == 'nombre' 
-                        ? const Color(0xFF3b82f6) : Colors.grey),
+                    Icon(Icons.sort_by_alpha,
+                        color: _sortBy == 'nombre'
+                            ? const Color(0xFF007f2f)
+                            : Colors.grey),
                     const SizedBox(width: 8),
-                    Text('Por Nombre', 
-                      style: TextStyle(
-                        color: _sortBy == 'nombre' 
-                          ? const Color(0xFF3b82f6) : Colors.black)),
+                    Text('Por Nombre',
+                        style: TextStyle(
+                            color: _sortBy == 'nombre'
+                                ? const Color(0xFF007f2f)
+                                : Colors.black)),
                   ],
                 ),
               ),
@@ -587,14 +617,16 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                 value: 'asistencia',
                 child: Row(
                   children: [
-                    Icon(Icons.trending_up, 
-                      color: _sortBy == 'asistencia' 
-                        ? const Color(0xFF3b82f6) : Colors.grey),
+                    Icon(Icons.trending_up,
+                        color: _sortBy == 'asistencia'
+                            ? const Color(0xFF007f2f)
+                            : Colors.grey),
                     const SizedBox(width: 8),
-                    Text('Por Asistencia', 
-                      style: TextStyle(
-                        color: _sortBy == 'asistencia' 
-                          ? const Color(0xFF3b82f6) : Colors.black)),
+                    Text('Por Asistencia',
+                        style: TextStyle(
+                            color: _sortBy == 'asistencia'
+                                ? const Color(0xFF007f2f)
+                                : Colors.black)),
                   ],
                 ),
               ),
@@ -602,14 +634,16 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                 value: 'ausencias',
                 child: Row(
                   children: [
-                    Icon(Icons.trending_down, 
-                      color: _sortBy == 'ausencias' 
-                        ? const Color(0xFF3b82f6) : Colors.grey),
+                    Icon(Icons.trending_down,
+                        color: _sortBy == 'ausencias'
+                            ? const Color(0xFF007f2f)
+                            : Colors.grey),
                     const SizedBox(width: 8),
-                    Text('Por Ausencias', 
-                      style: TextStyle(
-                        color: _sortBy == 'ausencias' 
-                          ? const Color(0xFF3b82f6) : Colors.black)),
+                    Text('Por Ausencias',
+                        style: TextStyle(
+                            color: _sortBy == 'ausencias'
+                                ? const Color(0xFF007f2f)
+                                : Colors.black)),
                   ],
                 ),
               ),
@@ -621,7 +655,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       floatingActionButton: _filteredStudents.isNotEmpty
           ? FloatingActionButton(
               onPressed: _exportReport,
-              backgroundColor: const Color(0xFF10B981),
+              backgroundColor: const Color(0xFF007f2f),
               tooltip: 'Exportar Informe',
               child: const Icon(Icons.file_download, color: Colors.white),
             )
@@ -638,8 +672,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Cargando estudiantes...', 
-              style: TextStyle(color: Colors.grey)),
+            Text('Cargando estudiantes...',
+                style: TextStyle(color: Colors.grey)),
           ],
         ),
       );
@@ -652,8 +686,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, 
-                size: 64, color: Colors.red),
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
               Text(
                 _errorMessage!,
@@ -666,7 +699,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Reintentar'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3b82f6),
+                  backgroundColor: const Color(0xFF007f2f),
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -682,9 +715,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         _buildSummaryCards(),
         _buildFilterSection(),
         Expanded(
-          child: _students.isEmpty
-              ? _buildEmptyState()
-              : _buildStudentsList(),
+          child: _students.isEmpty ? _buildEmptyState() : _buildStudentsList(),
         ),
       ],
     );
@@ -703,7 +734,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         },
         decoration: InputDecoration(
           hintText: 'Buscar por nombre, código o programa...',
-          prefixIcon: const Icon(Icons.search, color: Color(0xFF3b82f6)),
+          prefixIcon: const Icon(Icons.search, color: Color(0xFF007f2f)),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear),
@@ -721,8 +752,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 12),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
     );
@@ -736,7 +767,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         ? 0.0
         : _students.map((s) => s.porcentajeAsistencia).reduce((a, b) => a + b) /
             totalStudents;
-    final studentsAtRisk = _students.where((s) => s.porcentajeAsistencia < 70).length;
+    final studentsAtRisk =
+        _students.where((s) => s.porcentajeAsistencia < 70).length;
 
     return Container(
       color: Colors.white,
@@ -748,7 +780,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
               icon: Icons.people,
               title: 'Total',
               value: totalStudents.toString(),
-              color: Colors.blue,
+              color: const Color(0xFF007f2f),
             ),
           ),
           const SizedBox(width: 12),
@@ -851,8 +883,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
               IconButton(
                 icon: Icon(
                   Icons.calendar_today,
-                  color: _fechaSeleccionada != null 
-                      ? const Color(0xFF3b82f6) 
+                  color: _fechaSeleccionada != null
+                      ? const Color(0xFF007f2f)
                       : Colors.grey,
                 ),
                 tooltip: 'Filtrar por fecha específica',
@@ -861,7 +893,9 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
             ],
           ),
           // Chips de filtros activos
-          if (_periodoSeleccionado != null || _corteSeleccionado != null || _fechaSeleccionada != null)
+          if (_periodoSeleccionado != null ||
+              _corteSeleccionado != null ||
+              _fechaSeleccionada != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Wrap(
@@ -892,7 +926,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                   // ✅ NUEVO: Chip para fecha seleccionada
                   if (_fechaSeleccionada != null)
                     _buildFilterChip(
-                      label: DateFormat('dd/MM/yyyy').format(_fechaSeleccionada!),
+                      label:
+                          DateFormat('dd/MM/yyyy').format(_fechaSeleccionada!),
                       icon: Icons.calendar_today,
                       onDelete: () {
                         setState(() {
@@ -912,9 +947,11 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                       _loadStudents();
                     },
                     icon: const Icon(Icons.clear_all, size: 16),
-                    label: const Text('Limpiar filtros', style: TextStyle(fontSize: 12)),
+                    label: const Text('Limpiar filtros',
+                        style: TextStyle(fontSize: 12)),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                     ),
                   ),
                 ],
@@ -932,8 +969,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         color: const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: _periodoSeleccionado != null 
-              ? const Color(0xFF3b82f6) 
+          color: _periodoSeleccionado != null
+              ? const Color(0xFF007f2f)
               : Colors.transparent,
           width: 1.5,
         ),
@@ -970,15 +1007,15 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
 
   Widget _buildCorteDropdown() {
     final cortesDisponibles = _periodoSeleccionado?.cortes ?? [];
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: _corteSeleccionado != null 
-              ? const Color(0xFF3b82f6) 
+          color: _corteSeleccionado != null
+              ? const Color(0xFF007f2f)
               : Colors.transparent,
           width: 1.5,
         ),
@@ -999,13 +1036,15 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
               ),
             );
           }).toList(),
-          onChanged: _periodoSeleccionado == null ? null : (int? newValue) {
-            setState(() {
-              _corteSeleccionado = newValue;
-            });
-            // Recargar estudiantes con el nuevo filtro
-            _loadStudents();
-          },
+          onChanged: _periodoSeleccionado == null
+              ? null
+              : (int? newValue) {
+                  setState(() {
+                    _corteSeleccionado = newValue;
+                  });
+                  // Recargar estudiantes con el nuevo filtro
+                  _loadStudents();
+                },
         ),
       ),
     );
@@ -1020,7 +1059,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[  // ✅ NUEVO: Mostrar icono si está presente
+          if (icon != null) ...[
+            // ✅ NUEVO: Mostrar icono si está presente
             Icon(icon, size: 14, color: Colors.white),
             const SizedBox(width: 4),
           ],
@@ -1032,7 +1072,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       ),
       deleteIcon: const Icon(Icons.close, size: 16, color: Colors.white),
       onDeleted: onDelete,
-      backgroundColor: const Color(0xFF3b82f6),
+      backgroundColor: const Color(0xFF007f2f),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
@@ -1043,8 +1083,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.person_outline, 
-            size: 64, color: Colors.grey),
+          const Icon(Icons.person_outline, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
           const Text(
             'No hay estudiantes registrados',
@@ -1056,7 +1095,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
             icon: const Icon(Icons.refresh),
             label: const Text('Actualizar'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3b82f6),
+              backgroundColor: const Color(0xFF007f2f),
               foregroundColor: Colors.white,
             ),
           ),
@@ -1115,7 +1154,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
           final fechaFormateada = _fechaSeleccionada != null
               ? DateFormat('yyyy-MM-dd').format(_fechaSeleccionada!)
               : null;
-          
+
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -1141,13 +1180,13 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                 children: [
                   CircleAvatar(
                     radius: 24,
-                    backgroundColor: const Color(0xFF3b82f6).withOpacity(0.1),
+                    backgroundColor: const Color(0xFFE8F5E9),
                     child: Text(
                       student.nombreCompleto.substring(0, 1).toUpperCase(),
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF3b82f6),
+                        color: Color(0xFF007f2f),
                       ),
                     ),
                   ),
@@ -1232,8 +1271,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.red[50],
                       borderRadius: BorderRadius.circular(20),
@@ -1245,7 +1284,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.hourglass_empty, size: 14, color: Colors.red[700]),
+                        Icon(Icons.hourglass_empty,
+                            size: 14, color: Colors.red[700]),
                         const SizedBox(width: 4),
                         Text(
                           '${student.horasFaltadas}h',
@@ -1320,7 +1360,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF3b82f6),
+              primary: Color(0xFF007f2f),
               onPrimary: Colors.white,
               onSurface: Colors.black,
             ),
