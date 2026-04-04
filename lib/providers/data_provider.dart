@@ -8,29 +8,46 @@ import '../services/auth_service.dart';
 
 class DataProvider with ChangeNotifier {
   Teacher? _currentTeacher;
+  Student? _currentStudent;
   bool _isAuthenticated = false;
   final AuthService _authService = AuthService();
 
   Teacher? get currentTeacher => _currentTeacher;
+  Student? get currentStudent => _currentStudent;
   bool get isAuthenticated => _isAuthenticated;
   AuthService get authService => _authService;
 
   /// Método de login con objeto Teacher (usado por AuthService)
   void loginWithTeacher(Teacher teacher) {
     _currentTeacher = teacher;
+    _currentStudent = null; // Limpiar estudiante si hay
     _isAuthenticated = true;
-    print('🔐 Login completado - Token: ${_authService.sessionToken?.substring(0, 10)}...');
+    print('🔐 Login docente completado - Token: ${_authService.sessionToken?.substring(0, 10)}...');
     notifyListeners();
     // Cargar registros de asistencia al iniciar sesión
     refreshAttendanceRecords();
   }
 
+  /// Método de login con objeto Student (usado por AuthService)
+  void loginWithStudent(Student student) {
+    _currentStudent = student;
+    _currentTeacher = null; // Limpiar docente si hay
+    _isAuthenticated = true;
+    print('🔐 Login estudiante completado - Token: ${_authService.sessionToken?.substring(0, 10)}...');
+    notifyListeners();
+  }
+
   /// Método de logout
   Future<void> logout() async {
     // Limpiar token en el servidor y localmente
-    await _authService.logoutTeacher();
+    if (_currentTeacher != null) {
+      await _authService.logoutTeacher();
+    } else if (_currentStudent != null) {
+      await _authService.logoutStudent();
+    }
     
     _currentTeacher = null;
+    _currentStudent = null;
     _isAuthenticated = false;
     _attendanceRecords = [];
     _isLoadingAttendance = false;
@@ -89,10 +106,6 @@ class DataProvider with ChangeNotifier {
   List<AttendanceRecord> get attendanceRecords => _attendanceRecords;
   bool get isLoadingAttendance => _isLoadingAttendance;
   String? get attendanceError => _attendanceError;
-
-  // Estudiante actualmente seleccionado para registro de embeddings
-  Student? _currentStudent;
-  Student? get currentStudent => _currentStudent;
 
   void addRegisteredFace(RegisteredFace face) {
     _registeredFaces.add(face);

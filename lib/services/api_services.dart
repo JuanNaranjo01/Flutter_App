@@ -724,6 +724,12 @@ class ApiService {
     }
   }
 
+  /// Obtiene periodos de la API (alias para `getPeriodosDisponibles`)
+  /// Mantiene compatibilidad con llamadas existentes (course_students_screen)
+  static Future<List<Periodo>> getPeriodos() async {
+    return await getPeriodosDisponibles();
+  }
+
   /// ✅ NUEVO (27/02/2026): Obtiene periodos disponibles desde el diagnóstico
   /// Útil para construir selectores de periodo/corte con fechas correctas
   static Future<List<Periodo>> getPeriodosDisponibles() async {
@@ -750,52 +756,82 @@ class ApiService {
     }
   }
 
-  /// Obtiene todos los periodos académicos
-  /// [anio] - Filtrar por año opcional
-  /// [semestre] - Filtrar por semestre opcional (1 o 2)
-  /// [estado] - Filtrar por estado opcional (activo, inactivo)
-  static Future<List<Periodo>> getPeriodos({
-    int? anio,
-    String? semestre,
-    String? estado,
+  /// Registra embeddings faciales para un estudiante usando session_token
+  /// [frames]: lista de imágenes en formato base64
+  /// [sessionToken]: token de sesión del estudiante autenticado
+  static Future<ApiResponse> registerStudentEmbeddingsWithToken({
+    required List<String> frames,
+    required String sessionToken,
+    int maxRetries = 2,
   }) async {
-    try {
-      print('📅 Solicitando periodos académicos...');
-      
-      // Construir query params
-      final Map<String, String> queryParams = {};
-      if (anio != null) queryParams['año'] = anio.toString();
-      if (semestre != null) queryParams['semestre'] = semestre;
-      if (estado != null) queryParams['estado'] = estado;
-      
-      final uri = Uri.parse('${ApiConfig.baseUrl}/api/periodos')
-          .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
-      
-      final response = await _httpClient.get(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
-
-      print('📡 Respuesta periodos - Status: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List<dynamic> periodosJson = data['periodos'] ?? [];
-        
-        return periodosJson
-            .map((json) => Periodo.fromJson(json))
-            .toList();
-      } else {
-        throw Exception('Error al obtener periodos: ${response.statusCode}');
-      }
-    } on SocketException {
-      throw Exception('Error de conexión. Verifica tu conexión a internet.');
-    } on TimeoutException {
-      throw Exception('Tiempo de espera agotado.');
-    } catch (e) {
-      print('❌ Error en getPeriodos: $e');
-      throw Exception('Error: ${e.toString()}');
+    // Validar cantidad de frames
+    if (frames.length < 3 || frames.length > 10) {
+      return ApiResponse(
+        success: false,
+        message: 'Debes capturar entre 3 y 10 frames. Capturaste ${frames.length}.',
+      );
     }
+
+    int retries = 0;
+
+    while (retries <= maxRetries) {
+      try {
+        final requestBody = {
+          'images': frames,
+          'session_token': sessionToken,
+        };
+
+        final response = await _httpClient
+            .post(
+              Uri.parse(
+                  '${ApiConfig.baseUrl}/api/register_student_embeddings'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode(requestBody),
+            )
+            .timeout(
+              ApiConfig.receiveTimeout,
+              onTimeout: () => throw TimeoutException(
+                  'El servidor tardó demasiado procesando las imágenes'),
+            );
+
+        final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return ApiResponse(
+            success: true,
+            message: responseData['message'] ?? 'Registro exitoso',
+          );
+        } else {
+          return ApiResponse(
+            success: false,
+            message: responseData['message'] ?? 'Error desconocido',
+          );
+        }
+      } on TimeoutException {
+        retries++;
+        if (retries > maxRetries) {
+          return ApiResponse(
+            success: false,
+            message: 'El servidor tardó demasiado procesando las imágenes',
+          );
+        }
+      } on SocketException {
+        return ApiResponse(
+          success: false,
+          message: 'Error de conexión: Verifica tu conexión a internet',
+        );
+      } catch (e) {
+        return ApiResponse(
+          success: false,
+          message: 'Error: ${e.toString()}',
+        );
+      }
+    }
+
+    return ApiResponse(
+      success: false,
+      message: 'Error desconocido al registrar embeddings',
+    );
   }
 
   /// Obtiene el periodo académico actual
@@ -1147,4 +1183,15 @@ class NotFoundException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// Clase para respuestas simples de API
+class ApiResponse {
+  final bool success;
+  final String message;
+
+  ApiResponse({
+    required this.success,
+    required this.message,
+  });
 }
