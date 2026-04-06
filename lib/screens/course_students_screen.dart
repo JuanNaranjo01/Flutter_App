@@ -39,7 +39,6 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
   void initState() {
     super.initState();
     _loadPeriodos();
-    _loadStudents();
   }
 
   Future<void> _loadPeriodos() async {
@@ -59,18 +58,26 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
             (p) => p.idPeriodo == periodoActual.idPeriodo,
             orElse: () => periodos.isNotEmpty ? periodos.first : periodos.first,
           );
-          _corteSeleccionado = periodoActual.corteActual;
+          // Al entrar, mostrar datos generales del semestre (sin corte aplicado)
+          _corteSeleccionado = null;
         } else if (periodos.isNotEmpty) {
           _periodoSeleccionado = periodos.first;
-          _corteSeleccionado = 1;
+          // Mantener vista general del semestre al iniciar
+          _corteSeleccionado = null;
         }
         _loadingPeriodos = false;
       });
+
+      // Cargar estudiantes solo cuando el periodo inicial ya esté definido
+      _loadStudents();
     } catch (e) {
       print('⚠️ Error cargando periodos: $e');
       setState(() {
         _loadingPeriodos = false;
       });
+
+      // Fallback: si falla la carga de periodos, intentar cargar estudiantes sin filtros
+      _loadStudents();
     }
   }
 
@@ -245,8 +252,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         'Programa',
         'Asistencias',
         'Tardanzas',
-        'Ausencias',
-        'Min. Tardanza',
+        'Faltas',
         'Hrs. Perdidas'
       ];
 
@@ -265,7 +271,6 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         // El endpoint /api/teacher/course/:id/students ya retorna:
         // - horas_faltadas: calculadas por el backend (incluye ausencias + tardanzas/50)
         // - tardanzas: cantidad de tardanzas
-        // - minutos_tardanza: total de minutos acumulados
         // - total_clases: total de clases en el rango filtrado
 
         // Insertar datos del estudiante
@@ -273,10 +278,9 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
           student.codigo,
           student.nombreCompleto,
           student.programa,
-          student.asistencias,
+          student.asistenciasTotales,
           student.tardanzas,
-          student.ausencias,
-          student.minutosTardanza,
+          student.totalFaltas,
           student.horasFaltadas, // ⚠️ Double: incluye todo (ausencias + tardanzas)
         ];
 

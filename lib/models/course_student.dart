@@ -50,11 +50,28 @@ class CourseStudent {
       print('🔍 DEBUG stats completo: $stats');
       print('🔍 DEBUG total_horas_falta: ${stats['total_horas_falta']}');
       print('🔍 DEBUG horas_faltadas: ${stats['horas_faltadas']}');
-      
-      final totalClases = stats['total_clases'] ?? 0;
-      final asistencias = stats['presentes'] ?? 0;
-      final tardanzas = stats['tardanzas'] ?? 0;
-      final ausencias = stats['ausencias'] ?? 0;
+
+      int toInt(dynamic value) {
+        if (value is int) return value;
+        if (value is num) return value.toInt();
+        final raw = value?.toString() ?? '';
+        return int.tryParse(raw) ?? double.tryParse(raw)?.toInt() ?? 0;
+      }
+
+      final totalClases = toInt(stats['total_clases'] ?? 0);
+      final asistencias = toInt(stats['presentes'] ?? 0);
+      final tardanzasRaw = stats['tardanzas'] ?? stats['total_tardanzas'] ?? 0;
+      final tardanzas = tardanzasRaw is Map
+          ? toInt(
+              tardanzasRaw['cantidad'] ??
+              tardanzasRaw['tardanzas'] ??
+              tardanzasRaw['total_tardanzas'] ??
+                  tardanzasRaw['total'] ??
+                  tardanzasRaw['count'] ??
+                  0,
+            )
+          : toInt(tardanzasRaw);
+      final ausencias = toInt(stats['ausencias'] ?? stats['total_ausencias'] ?? 0);
       
       // ✅ NUEVO (27/02/2026): Cambios del backend
       final asistenciasTotales = stats['asistencias_totales'] ?? (asistencias + tardanzas);
@@ -72,10 +89,15 @@ class CourseStudent {
       print('🔍 DEBUG horasFaltadasRaw: $horasFaltadasRaw (tipo: ${horasFaltadasRaw.runtimeType})');
       print('🔍 DEBUG horasFaltadas final: $horasFaltadas');
       
-      final minutosTardanzaRaw = stats['minutos_tardanza'] ?? 0;
-      final minutosTardanza = minutosTardanzaRaw is int 
-          ? minutosTardanzaRaw 
-          : int.tryParse(minutosTardanzaRaw.toString()) ?? 0;
+      final minutosTardanzaRaw = stats['minutos_tardanza'] ??
+          stats['minutos_tardanzas'] ??
+          (tardanzasRaw is Map
+            ? (tardanzasRaw['minutos_tardanza'] ??
+              tardanzasRaw['minutos_totales'] ??
+              tardanzasRaw['minutos'])
+              : null) ??
+          0;
+      final minutosTardanza = toInt(minutosTardanzaRaw);
       
       // ✅ Porcentaje de asistencia (ya calculado por el backend)
       final porcentaje = stats['porcentaje_asistencia'] ?? 0.0;
