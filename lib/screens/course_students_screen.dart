@@ -247,8 +247,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         'Tardanzas',
         'Ausencias',
         'Min. Tardanza',
-        'Hrs. Perdidas',
-        '% Asistencia'
+        'Hrs. Perdidas'
       ];
 
       // Insertar encabezados
@@ -278,9 +277,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
           student.tardanzas,
           student.ausencias,
           student.minutosTardanza,
-          student
-              .horasFaltadas, // ⚠️ Double: incluye todo (ausencias + tardanzas)
-          '${student.porcentajeAsistencia.toStringAsFixed(1)}%',
+          student.horasFaltadas, // ⚠️ Double: incluye todo (ausencias + tardanzas)
         ];
 
         for (int i = 0; i < rowData.length; i++) {
@@ -335,13 +332,8 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         downloadsPath = directory.path;
       }
 
-      // Limpiar el nombre del curso para usarlo como nombre de archivo
-      String cleanCourseName = widget.course.nombre
-          .replaceAll(RegExp(r'[^a-zA-Z0-9_\-\s]'), '')
-          .replaceAll(RegExp(r'\s+'), '_')
-          .trim();
-
-      final filename = '$cleanCourseName.xlsx';
+      // Construir nombre de archivo según el curso y los filtros activos
+      final filename = _buildExportFilename();
       final path = '${downloadsPath}/$filename';
 
       // Guardar archivo
@@ -502,6 +494,37 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
         );
       }
     }
+  }
+
+  String _buildExportFilename() {
+    String sanitize(String value) {
+      return value
+          .replaceAll(RegExp(r'[^a-zA-Z0-9_\-\s]'), '')
+          .replaceAll(RegExp(r'\s+'), '_')
+          .trim();
+    }
+
+    final cleanCourseName = sanitize(widget.course.nombre);
+    final filterParts = <String>[];
+
+    if (_periodoSeleccionado != null) {
+      filterParts.add(sanitize(_periodoSeleccionado!.nombrePeriodo));
+    }
+
+    if (_corteSeleccionado != null) {
+      filterParts.add('corte_${_corteSeleccionado}');
+    }
+
+    if (_fechaSeleccionada != null) {
+      filterParts.add('fecha_${DateFormat('yyyyMMdd').format(_fechaSeleccionada!)}');
+    }
+
+    if (_searchQuery.trim().isNotEmpty) {
+      filterParts.add('busqueda_${sanitize(_searchQuery)}');
+    }
+
+    final filterSuffix = filterParts.isEmpty ? '' : '_${filterParts.join('_')}';
+    return '$cleanCourseName$filterSuffix.xlsx';
   }
 
   // Widget auxiliar para mostrar pasos en el diálogo

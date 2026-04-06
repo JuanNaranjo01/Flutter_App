@@ -39,7 +39,6 @@ class _StudentAttendanceDetailScreenState
   Map<String, dynamic> _studentInfo = {};
   bool _isLoading = true;
   String? _errorMessage;
-  bool _showOnlyAbsences = false;
 
   @override
   void initState() {
@@ -47,11 +46,10 @@ class _StudentAttendanceDetailScreenState
     _loadAttendanceData();
   }
 
-  Future<void> _loadAttendanceData({bool onlyAbsences = false}) async {
+  Future<void> _loadAttendanceData() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _showOnlyAbsences = onlyAbsences;
     });
 
     try {
@@ -62,40 +60,20 @@ class _StudentAttendanceDetailScreenState
         throw Exception('SESIÓN_INVÁLIDA');
       }
 
-      final Map<String, dynamic> data;
-      if (onlyAbsences) {
-        // ✅ NUEVO: Llamada con filtros opcionales
-        data = await ApiService.getStudentAbsences(
-          sessionToken,
-          widget.course.id,
-          widget.studentCode,
-          anio: widget.anio,
-          semestre: widget.semestre,
-          corte: widget.corte,
-          fecha: widget.fecha,
-        );
-        // El servicio ya regresa List<AttendanceDetail>
-        final absencesData = data['absences'];
-        _attendanceList = absencesData is List
-            ? List<AttendanceDetail>.from(absencesData)
-            : [];
-      } else {
-        // ✅ NUEVO: Llamada con filtros opcionales
-        data = await ApiService.getStudentAttendance(
-          sessionToken,
-          widget.course.id,
-          widget.studentCode,
-          anio: widget.anio,
-          semestre: widget.semestre,
-          corte: widget.corte,
-          fecha: widget.fecha,
-        );
-        // El servicio ya regresa List<AttendanceDetail>
-        final attendanceData = data['attendance'];
-        _attendanceList = attendanceData is List
-            ? List<AttendanceDetail>.from(attendanceData)
-            : [];
-      }
+      final data = await ApiService.getStudentAttendance(
+        sessionToken,
+        widget.course.id,
+        widget.studentCode,
+        anio: widget.anio,
+        semestre: widget.semestre,
+        corte: widget.corte,
+        fecha: widget.fecha,
+      );
+
+      final attendanceData = data['attendance'];
+      _attendanceList = attendanceData is List
+          ? List<AttendanceDetail>.from(attendanceData)
+          : [];
 
       setState(() {
         // Convertir explícitamente Map<dynamic, dynamic> a Map<String, dynamic>
@@ -193,8 +171,7 @@ class _StudentAttendanceDetailScreenState
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () =>
-                _loadAttendanceData(onlyAbsences: _showOnlyAbsences),
+            onPressed: _loadAttendanceData,
             tooltip: 'Actualizar',
           ),
         ],
@@ -233,8 +210,7 @@ class _StudentAttendanceDetailScreenState
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: () =>
-                    _loadAttendanceData(onlyAbsences: _showOnlyAbsences),
+                onPressed: _loadAttendanceData,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Reintentar'),
                 style: ElevatedButton.styleFrom(
@@ -250,7 +226,6 @@ class _StudentAttendanceDetailScreenState
 
     return Column(
       children: [
-        _buildFilterToggle(),
         _buildSummarySection(),
         Expanded(
           child: _attendanceList.isEmpty
@@ -258,53 +233,6 @@ class _StudentAttendanceDetailScreenState
               : _buildAttendanceList(),
         ),
       ],
-    );
-  }
-
-  Widget _buildFilterToggle() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _showOnlyAbsences
-                  ? () => _loadAttendanceData(onlyAbsences: false)
-                  : null,
-              icon: const Icon(Icons.list, size: 18),
-              label: const Text('Todo'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: !_showOnlyAbsences
-                    ? const Color(0xFF007f2f)
-                    : Colors.grey[300],
-                foregroundColor:
-                    !_showOnlyAbsences ? Colors.white : Colors.grey[600],
-                elevation: !_showOnlyAbsences ? 2 : 0,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: !_showOnlyAbsences
-                  ? () => _loadAttendanceData(onlyAbsences: true)
-                  : null,
-              icon: const Icon(Icons.warning, size: 18),
-              label: const Text('Solo Ausencias'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    _showOnlyAbsences ? Colors.red : Colors.grey[300],
-                foregroundColor:
-                    _showOnlyAbsences ? Colors.white : Colors.grey[600],
-                elevation: _showOnlyAbsences ? 2 : 0,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -447,15 +375,11 @@ class _StudentAttendanceDetailScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              _showOnlyAbsences ? Icons.check_circle_outline : Icons.event_note,
-              size: 80,
-              color: _showOnlyAbsences ? Colors.green : const Color(0xFF007f2f),
-            ),
+            const Icon(Icons.event_note, size: 80, color: Color(0xFF007f2f)),
             const SizedBox(height: 24),
-            Text(
-              _showOnlyAbsences ? '¡Excelente!' : 'Sin Registros',
-              style: const TextStyle(
+            const Text(
+              'Sin Registros',
+              style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1F2937),
@@ -463,9 +387,7 @@ class _StudentAttendanceDetailScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              _showOnlyAbsences
-                  ? 'No hay ausencias registradas para este estudiante'
-                  : 'Este estudiante aún no tiene registros de asistencia para este curso',
+              'Este estudiante aún no tiene registros de asistencia para este curso',
               style: TextStyle(
                 fontSize: 15,
                 color: Colors.grey[600],
@@ -474,8 +396,7 @@ class _StudentAttendanceDetailScreenState
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () =>
-                  _loadAttendanceData(onlyAbsences: _showOnlyAbsences),
+              onPressed: _loadAttendanceData,
               icon: const Icon(Icons.refresh),
               label: const Text('Actualizar'),
               style: ElevatedButton.styleFrom(
