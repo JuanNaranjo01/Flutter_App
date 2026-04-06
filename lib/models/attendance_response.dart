@@ -13,12 +13,20 @@ class AttendanceResponse {
   });
 
   factory AttendanceResponse.fromJson(Map<String, dynamic> json) {
+    final dataJson = (json['data'] is Map<String, dynamic>)
+        ? (json['data'] as Map<String, dynamic>)
+        : ((json['estudiante'] != null ||
+                json['codigo_estudiante'] != null ||
+                json['materia'] != null ||
+                json['fecha'] != null ||
+                json['hora'] != null)
+            ? json
+            : null);
+
     return AttendanceResponse(
       success: json['success'] ?? false,
       message: json['message'] ?? '',
-      data: json['data'] != null
-          ? AttendanceData.fromJson(json['data'])
-          : null,
+      data: dataJson != null ? AttendanceData.fromJson(dataJson) : null,
       error: json['error'],
     );
   }

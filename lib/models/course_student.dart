@@ -9,7 +9,7 @@ class CourseStudent {
   final int ausencias;
   final int totalClases;
   final double porcentajeAsistencia;
-  final double horasFaltadas; // Horas faltadas (incluye ausencias + tardanzas/60)
+  final double horasFaltadas; // Horas faltadas (incluye ausencias + tardanzas/50)
   final int minutosTardanza; // Total minutos de tardanza
   // ✅ NUEVO (27/02/2026): Cambios del backend
   final int asistenciasTotales; // Presentes + Tardanzas (porque tardanza = asistió aunque tarde)
@@ -62,7 +62,7 @@ class CourseStudent {
       
       // ✅ Horas faltadas y minutos vienen DIRECTOS en estadísticas (NO anidados)
       // Estructura: { "estadisticas": { "horas_faltadas": 5.83, "minutos_tardanza": 150 } }
-      // ⚠️ horas_faltadas es FLOAT porque incluye: ausencias + (minutos_tardanza/60)
+      // ⚠️ horas_faltadas es FLOAT porque incluye: ausencias + (minutos_tardanza/50)
       // ✅ ACTUALIZADO (27/02/2026): Buscar ambos nombres por compatibilidad
       final horasFaltadasRaw = stats['total_horas_falta'] ?? stats['horas_faltadas'] ?? 0;
       final horasFaltadas = horasFaltadasRaw is double 

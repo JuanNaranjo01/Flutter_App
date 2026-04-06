@@ -244,17 +244,38 @@ class ApiService {
 
         final responseData = jsonDecode(response.body) as Map<String, dynamic>;
 
+        // TEMP_DEBUG_START: retirar este bloque cuando se valide en QA
+        print('📥 Respuesta registro asistencia: status=${response.statusCode}');
+        print('📦 Body registro asistencia: ${response.body}');
+        // TEMP_DEBUG_END
+
         if (response.statusCode == 200) {
           return AttendanceResponse.fromJson(responseData);
         } else if (response.statusCode == 404) {
-          // No hay sesión activa o no se reconoció el rostro
+          final errorMessage = (responseData['error'] ??
+                  responseData['message'] ??
+                  'No se pudo registrar la asistencia')
+              .toString();
           return AttendanceResponse.error(
-            responseData['error'] ?? 'Error desconocido',
+            errorMessage,
           );
         } else if (response.statusCode == 400) {
-          // Asistencia duplicada
+          final rawError = (responseData['error'] ??
+                  responseData['message'] ??
+                  'Solicitud inválida')
+              .toString();
+          final lowerError = rawError.toLowerCase();
+
+          if (lowerError.contains('rostro') ||
+              lowerError.contains('face') ||
+              lowerError.contains('no se detect')) {
+            return AttendanceResponse.error(
+              'No se detectó un rostro válido. Intenta acercarte a la cámara, mejorar la iluminación y evitar movimientos bruscos.',
+            );
+          }
+
           return AttendanceResponse.error(
-            responseData['error'] ?? 'Error desconocido',
+            rawError,
           );
         } else {
           return AttendanceResponse.error(

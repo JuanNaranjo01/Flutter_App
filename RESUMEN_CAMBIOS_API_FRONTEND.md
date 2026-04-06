@@ -180,7 +180,7 @@ Card(
       "fecha_formateada": "22/02/2026",
       "estado": "tardanza",
       "minutos_tardanza": 25,
-      "horas_falta_equivalentes": 0.63  // ← NUEVO (25 min ÷ 40)
+      "horas_falta_equivalentes": 0.5  // ← NUEVO (25 min ÷ 50)
     },
     {
       "fecha_formateada": "25/02/2026",
@@ -200,10 +200,10 @@ Card(
 ```
 
 **Regla de cálculo:**
-- **Tardanza:** `horas_falta = minutos_tardanza ÷ 40`
-  - 20 min → 0.5 horas
-  - 40 min → 1.0 hora
-  - 60 min → 1.5 horas
+- **Tardanza:** `horas_falta = minutos_tardanza ÷ 50`
+  - 20 min → 0.4 horas
+  - 50 min → 1.0 hora
+  - 60 min → 1.2 horas
 
 - **Ausencia:** `horas_falta = duración_clase ÷ 60`
   - Clase de 120 min → 2.0 horas
@@ -356,7 +356,7 @@ print(data['resumen']);
 5. Verifica que usas POST (no GET) donde corresponde
 
 **Si los cálculos no coinciden:**
-- Tardanzas: Cada 40 min = 1 hora de falta
+- Tardanzas: Cada 50 min = 1 hora de falta
 - Ausencias: Duración de la clase en horas
 - `asistencias_totales = presentes + tardanzas`
 - `total_faltas = solo ausencias` (no incluye tardanzas)

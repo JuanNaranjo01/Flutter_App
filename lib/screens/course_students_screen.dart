@@ -264,7 +264,7 @@ class _CourseStudentsScreenState extends State<CourseStudentsScreen> {
       for (var student in _filteredStudents) {
         // ✅ USAR DATOS DEL BACKEND DIRECTAMENTE (ya vienen calculados correctamente)
         // El endpoint /api/teacher/course/:id/students ya retorna:
-        // - horas_faltadas: calculadas por el backend (incluye ausencias + tardanzas/60)
+        // - horas_faltadas: calculadas por el backend (incluye ausencias + tardanzas/50)
         // - tardanzas: cantidad de tardanzas
         // - minutos_tardanza: total de minutos acumulados
         // - total_clases: total de clases en el rango filtrado

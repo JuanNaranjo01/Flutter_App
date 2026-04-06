@@ -26,6 +26,7 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen>
   int _countdown = 0;
   double _recordingProgress = 0.0;
   List<CameraDescription>? _cameras;
+  int _currentCameraIndex = -1;
 
   // Animaciones
   late AnimationController _pulseController;
@@ -67,14 +68,17 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen>
         return;
       }
 
-      // Buscar cámara frontal
-      final frontCamera = _cameras!.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.front,
-        orElse: () => _cameras!.first,
-      );
+      if (_currentCameraIndex < 0 || _currentCameraIndex >= _cameras!.length) {
+        final frontIndex = _cameras!.indexWhere(
+          (camera) => camera.lensDirection == CameraLensDirection.front,
+        );
+        _currentCameraIndex = frontIndex >= 0 ? frontIndex : 0;
+      }
+
+      final selectedCamera = _cameras![_currentCameraIndex];
 
       _cameraController = CameraController(
-        frontCamera,
+        selectedCamera,
         ResolutionPreset.medium,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
@@ -89,6 +93,27 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen>
       }
     } catch (e) {
       _showErrorDialog('Error al inicializar la cámara: $e');
+    }
+  }
+
+  Future<void> _switchCamera() async {
+    if (_isRecording || _isProcessing || _countdown > 0) return;
+    if (_cameras == null || _cameras!.length < 2) return;
+
+    try {
+      final nextIndex = (_currentCameraIndex + 1) % _cameras!.length;
+
+      await _cameraController?.dispose();
+      _cameraController = null;
+
+      setState(() {
+        _isCameraInitialized = false;
+        _currentCameraIndex = nextIndex;
+      });
+
+      await _initializeCamera();
+    } catch (e) {
+      _showErrorDialog('Error al cambiar cámara: $e');
     }
   }
 
@@ -539,6 +564,26 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen>
                       ],
                     ),
                   ),
+                ),
+              ),
+            ),
+
+          if ((_cameras?.length ?? 0) > 1)
+            Positioned(
+              right: 16,
+              bottom: 150,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  onPressed: _switchCamera,
+                  icon: const Icon(
+                    Icons.flip_camera_android,
+                    color: Colors.white,
+                  ),
+                  tooltip: 'Cambiar cámara',
                 ),
               ),
             ),

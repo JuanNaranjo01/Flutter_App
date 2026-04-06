@@ -122,7 +122,7 @@ La universidad tiene una política específica sobre tardanzas:
 
 #### 2️⃣ Las tardanzas SÍ suman horas faltadas
 
-**Fórmula:** `horas_faltadas = minutos_tardanza / 60`
+**Fórmula:** `horas_faltadas = minutos_tardanza / 50`
 
 **Ejemplos reales:**
 
@@ -304,12 +304,12 @@ Future<List<Student>> getCourseStudentsByCorte(
 | Estado | horas_faltadas | minutos_tardanza | Lógica |
 |--------|---------------|------------------|--------|
 | **presente** | 0 | 0 | Llegó a tiempo (0-15 min tolerancia) |
-| **tardanza** | minutos/60 | > 0 | Llegó tarde → convierte minutos a horas |
+| **tardanza** | minutos/50 | > 0 | Llegó tarde → convierte minutos a horas |
 | **ausente** | duración_clase | 0 | No asistió → suma toda la clase |
 
 ✅ **Validaciones esperadas:**
 - `presente` → `horas_faltadas = 0` y `minutos_tardanza = 0`
-- `tardanza` → `horas_faltadas = minutos_tardanza/60` y `minutos_tardanza > 0`
+- `tardanza` → `horas_faltadas = minutos_tardanza/50` y `minutos_tardanza > 0`
 - `ausente` → `horas_faltadas > 0` y `minutos_tardanza = 0`
 
 ### 2️⃣ Cálculo de Porcentaje de Asistencia

@@ -23,9 +23,9 @@ class _AttendanceRegistrationScreenState
   bool _isCapturing = false;
   bool _isProcessing = false;
   int _currentFrame = 0;
+  int _currentCameraIndex = -1;
   String _statusMessage = 'Listo para registrar asistencia';
   List<CameraDescription>? _cameras;
-  final List<AttendanceData> _registeredAttendances = [];
 
   @override
   void initState() {
@@ -43,14 +43,18 @@ class _AttendanceRegistrationScreenState
         return;
       }
 
-      // Buscar cámara frontal
-      final frontCamera = _cameras!.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.front,
-        orElse: () => _cameras!.first,
-      );
+      // Inicializar por defecto con frontal si existe.
+      if (_currentCameraIndex < 0 || _currentCameraIndex >= _cameras!.length) {
+        final frontIndex = _cameras!.indexWhere(
+          (camera) => camera.lensDirection == CameraLensDirection.front,
+        );
+        _currentCameraIndex = frontIndex >= 0 ? frontIndex : 0;
+      }
+
+      final selectedCamera = _cameras![_currentCameraIndex];
 
       _cameraController = CameraController(
-        frontCamera,
+        selectedCamera,
         ResolutionPreset.medium,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
@@ -71,6 +75,41 @@ class _AttendanceRegistrationScreenState
         });
       }
     }
+  }
+
+  Future<void> _switchCamera() async {
+    if (_isCapturing || _isProcessing) return;
+    if (_cameras == null || _cameras!.length < 2) return;
+
+    try {
+      final nextIndex = (_currentCameraIndex + 1) % _cameras!.length;
+
+      await _cameraController?.dispose();
+      _cameraController = null;
+
+      setState(() {
+        _isCameraInitialized = false;
+        _currentCameraIndex = nextIndex;
+      });
+
+      await _initializeCamera();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _statusMessage = 'Error al cambiar cámara: $e';
+      });
+    }
+  }
+
+  Color _getConfidenceColor(double confidence) {
+    final percentage = confidence * 100;
+    if (percentage >= 76) {
+      return const Color(0xFF2E7D32);
+    }
+    if (percentage >= 55) {
+      return const Color(0xFFFF6F00);
+    }
+    return const Color(0xFFC62828);
   }
 
   Future<void> _captureFramesAndRegister() async {
@@ -180,9 +219,6 @@ class _AttendanceRegistrationScreenState
   }
 
   void _showSuccessDialog(AttendanceData data) {
-    // Actualizar lista local
-    _registeredAttendances.add(data);
-
     // Refrescar consultas automáticamente en background
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
@@ -190,6 +226,19 @@ class _AttendanceRegistrationScreenState
         dataProvider.refreshAttendanceRecords();
       }
     });
+
+    // TEMP_DEBUG_START: retirar cuando se valide estructura final del backend
+    print('✅ ASISTENCIA REGISTRADA (DEBUG):');
+    print('   - estudiante: ${data.estudiante}');
+    print('   - codigo: ${data.codigoEstudiante}');
+    print('   - programa: ${data.programa}');
+    print('   - materia: ${data.materia}');
+    print('   - fecha: ${data.fecha}');
+    print('   - hora: ${data.hora}');
+    print('   - confidence: ${data.confidence}');
+    // TEMP_DEBUG_END
+
+    final confidenceColor = _getConfidenceColor(data.confidence);
 
     showDialog(
       context: context,
@@ -236,19 +285,21 @@ class _AttendanceRegistrationScreenState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
+                  color: confidenceColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: confidenceColor.withValues(alpha: 0.45),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.verified,
-                        color: Color(0xFF2E7D32), size: 20),
+                    Icon(Icons.verified, color: confidenceColor, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      'Confianza: ${(data.confidence * 100).toStringAsFixed(1)}%',
-                      style: const TextStyle(
-                        color: Color(0xFF1B5E20),
+                      'Registro validado',
+                      style: TextStyle(
+                        color: confidenceColor,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -263,7 +314,6 @@ class _AttendanceRegistrationScreenState
             onPressed: () {
               Navigator.of(context).pop();
               setState(() {
-                _registeredAttendances.insert(0, data);
                 _statusMessage = 'Listo para registrar asistencia';
               });
             },
@@ -491,6 +541,25 @@ class _AttendanceRegistrationScreenState
                                     ),
                                   ),
                                 ),
+                              if ((_cameras?.length ?? 0) > 1)
+                                Positioned(
+                                  right: 16,
+                                  bottom: 16,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.45),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: IconButton(
+                                      onPressed: _switchCamera,
+                                      icon: const Icon(
+                                        Icons.flip_camera_android,
+                                        color: Colors.white,
+                                      ),
+                                      tooltip: 'Cambiar cámara',
+                                    ),
+                                  ),
+                                ),
                             ],
                           )
                         : Center(
@@ -530,122 +599,6 @@ class _AttendanceRegistrationScreenState
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Lista de asistencias registradas
-                      if (_registeredAttendances.isNotEmpty)
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 200),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'Asistencias Registradas',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.green.shade900,
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green.shade100,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        '${_registeredAttendances.length}',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green.shade700,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Flexible(
-                                child: ListView.builder(
-                                  shrinkWrap: true,
-                                  itemCount: _registeredAttendances.length,
-                                  itemBuilder: (context, index) {
-                                    final attendance =
-                                        _registeredAttendances[index];
-                                    return Card(
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      elevation: 2,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        side: BorderSide(
-                                          color: Colors.green.shade200,
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: ListTile(
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 16, vertical: 8),
-                                        leading: CircleAvatar(
-                                          backgroundColor:
-                                              Colors.green.shade100,
-                                          child: Icon(
-                                            Icons.check_circle,
-                                            color: Colors.green.shade700,
-                                          ),
-                                        ),
-                                        title: Text(
-                                          attendance.estudiante,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Código: ${attendance.codigoEstudiante}',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            ),
-                                            Text(
-                                              '${attendance.hora} - ${(attendance.confidence * 100).toStringAsFixed(1)}%',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey.shade500,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        trailing: Icon(
-                                          Icons.verified,
-                                          color: Colors.green.shade600,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                      // Espaciado antes del botón
-                      const SizedBox(height: 16),
-
                       // Botón de registro
                       SizedBox(
                         width: double.infinity,

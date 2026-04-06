@@ -98,7 +98,7 @@ double horasPerdidasPorTardanza = 0.0;
 try {
   final attendanceData = await ApiService.getStudentAttendance(...);
   // Más cálculos manuales...
-  horasPerdidasPorTardanza = totalMinutosTardanza / 40.0;
+  horasPerdidasPorTardanza = totalMinutosTardanza / 50.0;
   // etc...
 }
 ```

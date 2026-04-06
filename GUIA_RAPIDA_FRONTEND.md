@@ -240,13 +240,13 @@ POST http://servidor:5000/api/flutter/curso/{id_curso}/estudiante/{codigo}/falta
 Llegada          | Faltas
 -----------------|--------
 0-15 min         | 0 horas (Presente)
-16-40 min        | 1 hora (Tardanza)
-41-80 min        | 2 horas (Tardanza)
-Cada 40 min      | +1 hora
+16-50 min        | 1 hora (Tardanza)
+51-100 min       | 2 horas (Tardanza)
+Cada 50 min      | +1 hora
 Ausente completo | Todas las horas de la clase
 ```
 
-**Fórmula:** `horas_falta = minutos_tardanza / 40`
+**Fórmula:** `horas_falta = minutos_tardanza / 50`
 
 ---
 

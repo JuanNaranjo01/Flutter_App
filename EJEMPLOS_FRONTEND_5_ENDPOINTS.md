@@ -37,7 +37,7 @@ GET /api/reportes/estudiante/320252057?id_curso=300&id_periodo=1
       "tardanzas": {
         "minutos_totales": 120,
         "horas_equivalentes_decimal": 3.0,
-        "explicacion": "40 minutos de tardanza = 1 hora de falta"
+        "explicacion": "50 minutos de tardanza = 1 hora de falta"
       },
       "horas_faltadas": {
         "ausencias_decimal": 4.0,
@@ -812,7 +812,7 @@ Content-Type: application/json
     "horas_tardanza_equivalentes": 2.0,
     "horas_total_decimal": 4.5,
     "horas_total_entero": 5,
-    "explicacion": "40 minutos de tardanza = 1 hora de falta"
+    "explicacion": "50 minutos de tardanza = 1 hora de falta"
   }
 }
 ```
@@ -863,7 +863,7 @@ export const CalculadoraHoras: React.FC = () => {
             type="number"
             value={minutosTardanza}
             onChange={(e) => setMinutosTardanza(Number(e.target.value))}
-            helperText="40 minutos = 1 hora de falta"
+            helperText="50 minutos = 1 hora de falta"
           />
           
           <Button variant="contained" onClick={calcular}>
