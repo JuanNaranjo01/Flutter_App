@@ -118,8 +118,7 @@ class RoleSelectionScreen extends StatelessWidget {
                         children: [
                           ElevatedButton.icon(
                             onPressed: () {
-                              Navigator.of(context)
-                                  .pushReplacementNamed('/login');
+                              Navigator.of(context).pushNamed('/login');
                             },
                             icon: const Icon(Icons.school),
                             label: const Text(
@@ -141,8 +140,7 @@ class RoleSelectionScreen extends StatelessWidget {
                           const SizedBox(height: 16),
                           OutlinedButton.icon(
                             onPressed: () {
-                              Navigator.of(context)
-                                  .pushReplacementNamed('/student-home');
+                              Navigator.of(context).pushNamed('/student-home');
                             },
                             icon: const Icon(Icons.person),
                             label: const Text(
