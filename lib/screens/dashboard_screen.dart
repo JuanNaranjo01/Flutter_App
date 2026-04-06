@@ -62,7 +62,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 if (context.mounted) {
                   Navigator.of(context).pop();
                   Navigator.of(context).pushNamedAndRemoveUntil(
-                      '/login', (Route<dynamic> route) => false);
+                      '/role-selection', (Route<dynamic> route) => false);
                 }
               },
               style: ElevatedButton.styleFrom(
