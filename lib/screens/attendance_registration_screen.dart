@@ -409,7 +409,7 @@ class _AttendanceRegistrationScreenState
                 if (context.mounted) {
                   Navigator.of(context).pop(); // Cerrar diálogo
                   Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/login',
+                    '/role-selection',
                     (Route<dynamic> route) => false,
                   );
                 }
@@ -418,7 +418,7 @@ class _AttendanceRegistrationScreenState
                 backgroundColor: const Color(0xFF007f2f),
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Ir a Login'),
+              child: const Text('Ir al inicio'),
             ),
         ],
       ),
@@ -547,7 +547,8 @@ class _AttendanceRegistrationScreenState
                                   bottom: 16,
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.45),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.45),
                                       shape: BoxShape.circle,
                                     ),
                                     child: IconButton(
