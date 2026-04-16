@@ -7,7 +7,12 @@ import '../services/video_processing_service.dart';
 import '../models/student.dart';
 
 class FaceRegistrationScreen extends StatefulWidget {
-  const FaceRegistrationScreen({super.key});
+  const FaceRegistrationScreen({
+    super.key,
+    this.isStudentMode = false,
+  });
+
+  final bool isStudentMode;
 
   @override
   State<FaceRegistrationScreen> createState() => _FaceRegistrationScreenState();
@@ -125,8 +130,21 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       if (response.found &&
           response.students != null &&
           response.students!.isNotEmpty) {
+        final student = response.students!.first;
+
+        // En modo estudiante no se permite volver a registrar si ya tiene embeddings.
+        if (widget.isStudentMode && student.tieneEmbeddings) {
+          setState(() {
+            _foundStudent = null;
+            _errorMessage =
+                'Ya tienes registro facial activo. Solo se permite un registro por estudiante.';
+            _isLoading = false;
+          });
+          return;
+        }
+
         setState(() {
-          _foundStudent = response.students!.first;
+          _foundStudent = student;
           _isLoading = false;
         });
         _showConfirmationDialog();
@@ -275,7 +293,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       final response = await ApiService.registerStudentEmbeddings(
         codigoEstudiante: student.codigo,
         images: _capturedFrames!,
-        forceUpdate: student.tieneEmbeddings,
+        forceUpdate: widget.isStudentMode ? false : student.tieneEmbeddings,
       );
 
       if (!mounted) return;
@@ -427,13 +445,14 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancelar'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Intentar con force_update = true (será manejado por _registerEmbeddings)
-            },
-            child: const Text('Actualizar'),
-          ),
+          if (!widget.isStudentMode)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Intentar con force_update = true (será manejado por _registerEmbeddings)
+              },
+              child: const Text('Actualizar'),
+            ),
         ],
       ),
     );
@@ -499,7 +518,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                         colors: [Color(0xFF007f2f), Color(0xFF009938)],
                       ),
                     ),
-                    child: const SafeArea(
+                    child: SafeArea(
                       child: Padding(
                         padding: EdgeInsets.all(20),
                         child: Column(
@@ -516,7 +535,9 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                             ),
                             SizedBox(height: 4),
                             Text(
-                              'Captura automática con video',
+                              widget.isStudentMode
+                                  ? 'Captura automática con video (registro único)'
+                                  : 'Captura automática con video',
                               style: TextStyle(
                                 color: Color(0xFFBFDBFE),
                                 fontSize: 14,
@@ -564,6 +585,42 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                 onSubmitted: (_) => _searchStudent(),
                               ),
                               const SizedBox(height: 16),
+                              if (widget.isStudentMode)
+                                Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade50,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: Colors.orange.shade300,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.lock_outline,
+                                        color: Colors.orange.shade800,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Modo estudiante: solo se permite un registro facial y no se puede actualizar.',
+                                          style: TextStyle(
+                                            color: Colors.orange.shade900,
+                                            fontSize: 13,
+                                            height: 1.35,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               if (_errorMessage != null)
                                 Container(
                                   padding: const EdgeInsets.all(12),
@@ -662,6 +719,14 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                 number: '4',
                                 text: 'Busca una buena iluminación',
                               ),
+                              if (widget.isStudentMode) ...[
+                                const SizedBox(height: 12),
+                                _buildInstructionItem(
+                                  number: '5',
+                                  text:
+                                      'Este modo permite un solo registro y no admite actualización de rostro',
+                                ),
+                              ],
                             ],
                           ),
                         ),

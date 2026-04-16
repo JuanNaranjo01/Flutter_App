@@ -188,7 +188,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = const [
     DashboardScreen(),
-    FaceRegistrationScreen(),
+    FaceRegistrationScreen(isStudentMode: false),
     AttendanceRegistrationScreen(),
     // FaceRecognitionScreen(), // Oculta temporalmente
     ChatInterfaceScreen(),
@@ -257,7 +257,7 @@ class _StudentSessionScreenState extends State<StudentSessionScreen> {
 
   final List<Widget> _screens = const [
     DashboardScreen(),
-    FaceRegistrationScreen(),
+    FaceRegistrationScreen(isStudentMode: true),
     AttendanceRegistrationScreen(),
     ChatInterfaceScreen(),
   ];
