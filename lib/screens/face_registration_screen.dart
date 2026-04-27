@@ -20,6 +20,7 @@ class FaceRegistrationScreen extends StatefulWidget {
 
 class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   final _codigoController = TextEditingController();
+  final _otpController = TextEditingController();
 
   // Estados del flujo
   Student? _foundStudent;
@@ -27,6 +28,11 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   bool _isLoading = false;
   bool _isProcessing = false;
   bool _isCapturing = false;
+  bool _isOtpSending = false;
+  bool _isOtpVerifying = false;
+  bool _isOtpValidated = false;
+  String? _otpSessionToken;
+  String? _otpMessage;
   String? _errorMessage;
 
   // Cámara
@@ -38,6 +44,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   @override
   void dispose() {
     _codigoController.dispose();
+    _otpController.dispose();
     _cameraController?.dispose();
     super.dispose();
   }
@@ -132,6 +139,16 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
           response.students!.isNotEmpty) {
         final student = response.students!.first;
 
+        if (widget.isStudentMode && student.emailInstitucional.trim().isEmpty) {
+          setState(() {
+            _foundStudent = null;
+            _errorMessage =
+                'Este estudiante no tiene correo institucional registrado. No se puede continuar con el autorregistro.';
+            _isLoading = false;
+          });
+          return;
+        }
+
         // En modo estudiante no se permite volver a registrar si ya tiene embeddings.
         if (widget.isStudentMode && student.tieneEmbeddings) {
           setState(() {
@@ -178,59 +195,253 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Confirmar Datos del Estudiante'),
-        content: _foundStudent != null
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Código: ${_foundStudent!.codigo}'),
-                  const SizedBox(height: 8),
-                  Text('Nombre: ${_foundStudent!.nombreCompleto}'),
-                  const SizedBox(height: 8),
-                  Text('Programa: ${_foundStudent!.programa}'),
-                  const SizedBox(height: 8),
-                  Text('Semestre: ${_foundStudent!.semestre}'),
-                  if (_foundStudent!.tieneEmbeddings) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade100,
-                        borderRadius: BorderRadius.circular(8),
+      builder: (context) {
+        final student = _foundStudent;
+
+        if (student == null) {
+          return const SizedBox.shrink();
+        }
+
+        return StatefulBuilder(
+          builder: (context, dialogSetState) {
+            Future<void> requestOtp() async {
+              dialogSetState(() {
+                _isOtpSending = true;
+                _otpMessage = null;
+              });
+
+              try {
+                final response = await ApiService.requestStudentOtp(
+                  codigoEstudiante: student.codigo,
+                  emailInstitucional: student.emailInstitucional,
+                );
+
+                if (!mounted) return;
+
+                dialogSetState(() {
+                  _isOtpSending = false;
+                  _otpMessage = response.message;
+                });
+              } catch (e) {
+                if (!mounted) return;
+
+                dialogSetState(() {
+                  _isOtpSending = false;
+                  _otpMessage = 'No se pudo enviar el OTP: $e';
+                });
+              }
+            }
+
+            Future<void> verifyOtp() async {
+              final otp = _otpController.text.trim();
+              if (otp.isEmpty) {
+                dialogSetState(() {
+                  _otpMessage = 'Ingresa el código OTP enviado al correo.';
+                });
+                return;
+              }
+
+              dialogSetState(() {
+                _isOtpVerifying = true;
+                _otpMessage = null;
+              });
+
+              try {
+                final response = await ApiService.verifyStudentOtp(
+                  codigoEstudiante: student.codigo,
+                  otpCode: otp,
+                );
+
+                if (!mounted) return;
+
+                dialogSetState(() {
+                  _isOtpVerifying = false;
+                  _isOtpValidated = true;
+                  _otpSessionToken = response.otpToken;
+                  _otpMessage = response.message;
+                });
+              } catch (e) {
+                if (!mounted) return;
+
+                dialogSetState(() {
+                  _isOtpVerifying = false;
+                  _otpMessage = 'OTP inválido o expirado: $e';
+                });
+              }
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: const Text('Confirmar Datos del Estudiante'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Código: ${student.codigo}'),
+                    const SizedBox(height: 8),
+                    Text('Nombre: ${student.nombreCompleto}'),
+                    const SizedBox(height: 8),
+                    Text('Programa: ${student.programa}'),
+                    const SizedBox(height: 8),
+                    Text('Semestre: ${student.semestre}'),
+                    if (widget.isStudentMode) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                          'Correo institucional: ${student.emailInstitucional}'),
+                    ],
+                    if (student.tieneEmbeddings) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '⚠️ Ya tiene ${student.numEmbeddings} fotos registradas',
+                          style: TextStyle(color: Colors.orange.shade900),
+                        ),
                       ),
-                      child: Text(
-                        '⚠️ Ya tiene ${_foundStudent!.numEmbeddings} fotos registradas',
-                        style: TextStyle(color: Colors.orange.shade900),
+                    ],
+                    if (widget.isStudentMode) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Verificación por correo institucional',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 8),
+                            if (_isOtpValidated)
+                              const Text(
+                                'OTP validado correctamente. Ya puedes continuar.',
+                                style: TextStyle(color: Color(0xFF1B5E20)),
+                              )
+                            else ...[
+                              Text(
+                                'Se enviará un OTP a ${student.emailInstitucional}',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isOtpSending ? null : requestOtp,
+                                  icon: _isOtpSending
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(Icons.mark_email_read),
+                                  label: Text(
+                                    _isOtpSending
+                                        ? 'Enviando OTP...'
+                                        : 'Enviar OTP al correo',
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF007f2f),
+                                    foregroundColor: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _otpController,
+                                keyboardType: TextInputType.number,
+                                maxLength: 6,
+                                decoration: InputDecoration(
+                                  counterText: '',
+                                  hintText: 'Ingresa el OTP de 6 dígitos',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isOtpVerifying ? null : verifyOtp,
+                                  icon: _isOtpVerifying
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(Icons.verified),
+                                  label: Text(
+                                    _isOtpVerifying
+                                        ? 'Verificando...'
+                                        : 'Validar OTP',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
+                    if (_otpMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _otpMessage!,
+                          style: TextStyle(color: Colors.green.shade900),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              )
-            : const SizedBox.shrink(),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _resetForm();
-            },
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _initializeCamera();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3b82f6),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Continuar'),
-          ),
-        ],
-      ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _resetForm();
+                  },
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: widget.isStudentMode && !_isOtpValidated
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                          _initializeCamera();
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3b82f6),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Continuar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -284,6 +495,16 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
     final student = _foundStudent;
     if (student == null || _capturedFrames == null) return;
 
+    if (widget.isStudentMode && !_isOtpValidated) {
+      _showErrorDialog(
+        'Primero debes validar el OTP enviado a tu correo institucional.',
+      );
+      setState(() {
+        _isProcessing = false;
+      });
+      return;
+    }
+
     setState(() {
       _isProcessing = true;
     });
@@ -294,6 +515,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         codigoEstudiante: student.codigo,
         images: _capturedFrames!,
         forceUpdate: widget.isStudentMode ? false : student.tieneEmbeddings,
+        otpToken: widget.isStudentMode ? _otpSessionToken : null,
       );
 
       if (!mounted) return;
@@ -483,7 +705,13 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       _foundStudent = null;
       _capturedFrames = null;
       _codigoController.clear();
+      _otpController.clear();
       _errorMessage = null;
+      _otpMessage = null;
+      _otpSessionToken = null;
+      _isOtpValidated = false;
+      _isOtpSending = false;
+      _isOtpVerifying = false;
       _cameraController = null;
       _isCameraInitialized = false;
     });

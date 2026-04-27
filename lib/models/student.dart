@@ -171,3 +171,49 @@ class FailedImage {
     );
   }
 }
+
+class OtpRequestResponse {
+  final bool success;
+  final String message;
+  final int? expiresInSeconds;
+  final String? emailMasked;
+
+  OtpRequestResponse({
+    required this.success,
+    required this.message,
+    this.expiresInSeconds,
+    this.emailMasked,
+  });
+
+  factory OtpRequestResponse.fromJson(Map<String, dynamic> json) {
+    return OtpRequestResponse(
+      success: json['success'] ?? false,
+      message: json['message'] ?? '',
+      expiresInSeconds: json['expires_in_seconds'],
+      emailMasked: json['email_masked'],
+    );
+  }
+}
+
+class OtpVerifyResponse {
+  final bool success;
+  final String message;
+  final String? otpToken;
+  final int? expiresInSeconds;
+
+  OtpVerifyResponse({
+    required this.success,
+    required this.message,
+    this.otpToken,
+    this.expiresInSeconds,
+  });
+
+  factory OtpVerifyResponse.fromJson(Map<String, dynamic> json) {
+    return OtpVerifyResponse(
+      success: json['success'] ?? false,
+      message: json['message'] ?? '',
+      otpToken: json['otp_token'],
+      expiresInSeconds: json['expires_in_seconds'],
+    );
+  }
+}
