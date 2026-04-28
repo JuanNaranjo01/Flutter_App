@@ -19,6 +19,11 @@ class FaceRegistrationScreen extends StatefulWidget {
 }
 
 class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
+  static const Color _ucevaGreen = Color(0xFF007F2F);
+  static const Color _ucevaGreenDark = Color(0xFF0E4D2A);
+  static const Color _ucevaGreenSoft = Color(0xFFEAF6EE);
+  static const Color _ucevaGreenBorder = Color(0xFFB7DEC4);
+
   final _codigoController = TextEditingController();
   final _otpController = TextEditingController();
 
@@ -34,6 +39,9 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   String? _otpSessionToken;
   String? _otpMessage;
   String? _errorMessage;
+  int _otpRequestCooldownSeconds =
+      0; // Segundos restantes para re-solicitar OTP
+  Timer? _otpRequestTimer;
 
   // Cámara
   CameraController? _cameraController;
@@ -46,7 +54,27 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
     _codigoController.dispose();
     _otpController.dispose();
     _cameraController?.dispose();
+    _otpRequestTimer?.cancel();
     super.dispose();
+  }
+
+  void _startOtpCooldown(int seconds, Function(VoidCallback) dialogSetState) {
+    _otpRequestTimer?.cancel();
+    setState(() {
+      _otpRequestCooldownSeconds = seconds;
+    });
+    dialogSetState(() {}); // Actualiza diálogo inicial
+
+    _otpRequestTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      setState(() {
+        _otpRequestCooldownSeconds--;
+      });
+      dialogSetState(() {}); // Reconstruye el diálogo cada segundo
+
+      if (_otpRequestCooldownSeconds <= 0) {
+        _otpRequestTimer?.cancel();
+      }
+    });
   }
 
   Future<void> _initializeCamera() async {
@@ -218,10 +246,18 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
 
                 if (!mounted) return;
 
-                dialogSetState(() {
-                  _isOtpSending = false;
-                  _otpMessage = response.message;
-                });
+                if (response.success) {
+                  dialogSetState(() {
+                    _isOtpSending = false;
+                    _otpMessage = response.message;
+                  });
+                  _startOtpCooldown(60, dialogSetState);
+                } else {
+                  dialogSetState(() {
+                    _isOtpSending = false;
+                    _otpMessage = response.message;
+                  });
+                }
               } catch (e) {
                 if (!mounted) return;
 
@@ -273,128 +309,368 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
             return AlertDialog(
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
-              title: const Text('Confirmar Datos del Estudiante'),
+              title: widget.isStudentMode
+                  ? null
+                  : const Text('Confirmar Registro'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Código: ${student.codigo}'),
-                    const SizedBox(height: 8),
-                    Text('Nombre: ${student.nombreCompleto}'),
-                    const SizedBox(height: 8),
-                    Text('Programa: ${student.programa}'),
-                    const SizedBox(height: 8),
-                    Text('Semestre: ${student.semestre}'),
-                    if (widget.isStudentMode) ...[
-                      const SizedBox(height: 8),
+                    if (!widget.isStudentMode) ...[
                       Text(
-                          'Correo institucional: ${student.emailInstitucional}'),
+                        student.nombreCompleto,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Se iniciará el registro facial de este estudiante.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                     ],
                     if (student.tieneEmbeddings) ...[
                       const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '⚠️ Ya tiene ${student.numEmbeddings} fotos registradas',
-                          style: TextStyle(color: Colors.orange.shade900),
-                        ),
-                      ),
-                    ],
-                    if (widget.isStudentMode) ...[
-                      const SizedBox(height: 16),
-                      Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: Colors.amber.shade50,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blue.shade200),
+                          border: Border.all(
+                            color: Colors.amber.shade200,
+                            width: 1.5,
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            const Text(
-                              'Verificación por correo institucional',
-                              style: TextStyle(fontWeight: FontWeight.w700),
+                            Icon(
+                              Icons.warning_rounded,
+                              color: Colors.amber.shade700,
+                              size: 22,
                             ),
-                            const SizedBox(height: 8),
-                            if (_isOtpValidated)
-                              const Text(
-                                'OTP validado correctamente. Ya puedes continuar.',
-                                style: TextStyle(color: Color(0xFF1B5E20)),
-                              )
-                            else ...[
-                              Text(
-                                'Se enviará un OTP a ${student.emailInstitucional}',
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: _isOtpSending ? null : requestOtp,
-                                  icon: _isOtpSending
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Icon(Icons.mark_email_read),
-                                  label: Text(
-                                    _isOtpSending
-                                        ? 'Enviando OTP...'
-                                        : 'Enviar OTP al correo',
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Ya tiene fotos registradas',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.amber.shade900,
+                                      fontSize: 12,
+                                    ),
                                   ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF007f2f),
-                                    foregroundColor: Colors.white,
+                                  Text(
+                                    '${student.numEmbeddings} foto(s) registrada(s)',
+                                    style: TextStyle(
+                                      color: Colors.amber.shade700,
+                                      fontSize: 11,
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: _otpController,
-                                keyboardType: TextInputType.number,
-                                maxLength: 6,
-                                decoration: InputDecoration(
-                                  counterText: '',
-                                  hintText: 'Ingresa el OTP de 6 dígitos',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: _isOtpVerifying ? null : verifyOtp,
-                                  icon: _isOtpVerifying
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Icon(Icons.verified),
-                                  label: Text(
-                                    _isOtpVerifying
-                                        ? 'Verificando...'
-                                        : 'Validar OTP',
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    if (widget.isStudentMode) ...[
+                      const SizedBox(height: 16),
+                      Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 4,
+                        shadowColor: _ucevaGreen.withOpacity(0.2),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                _ucevaGreenSoft,
+                                const Color(0xFFDDF0E4),
+                              ],
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Header con progreso
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: _isOtpValidated
+                                          ? Colors.green.shade500
+                                          : _ucevaGreen,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      _isOtpValidated
+                                          ? Icons.check_circle
+                                          : Icons.email_outlined,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Verificación por Email',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 14,
+                                            color: _ucevaGreenDark,
+                                          ),
+                                        ),
+                                        Text(
+                                          _isOtpValidated
+                                              ? '✓ Completado'
+                                              : 'Paso 1 de 2',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: _ucevaGreen,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              if (_isOtpValidated) ...[
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.green.shade200,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.verified_user,
+                                        color: Colors.green.shade700,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Verificación completada correctamente',
+                                          style: TextStyle(
+                                            color: Colors.green.shade900,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ] else ...[
+                                Text(
+                                  'Te enviaremos un código a:',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _ucevaGreenDark,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.6),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    student.emailInstitucional,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: _ucevaGreenDark,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                // Botón Enviar OTP
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    child: ElevatedButton.icon(
+                                      onPressed: (_isOtpSending ||
+                                              _otpRequestCooldownSeconds > 0)
+                                          ? null
+                                          : requestOtp,
+                                      icon: _isOtpSending
+                                          ? const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<
+                                                        Color>(Colors.white),
+                                              ),
+                                            )
+                                          : Icon(
+                                              _otpRequestCooldownSeconds > 0
+                                                  ? Icons.schedule
+                                                  : Icons.mark_email_read,
+                                            ),
+                                      label: Text(
+                                        _isOtpSending
+                                            ? 'Enviando código...'
+                                            : (_otpRequestCooldownSeconds > 0
+                                                ? 'Intenta en ${_otpRequestCooldownSeconds}s'
+                                                : 'Enviar código OTP'),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            _otpRequestCooldownSeconds > 0
+                                                ? Colors.grey.shade400
+                                                : _ucevaGreen,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                // Campo OTP
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Código de 6 dígitos',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: _ucevaGreenDark,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    TextField(
+                                      controller: _otpController,
+                                      keyboardType: TextInputType.number,
+                                      maxLength: 6,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 8,
+                                      ),
+                                      decoration: InputDecoration(
+                                        counterText: '',
+                                        hintText: '• • • • • •',
+                                        hintStyle: TextStyle(
+                                          fontSize: 20,
+                                          color: _ucevaGreenBorder,
+                                          letterSpacing: 6,
+                                        ),
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          borderSide: BorderSide(
+                                            color: _ucevaGreenBorder,
+                                          ),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          borderSide: BorderSide(
+                                            color: _ucevaGreen,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                // Botón Validar
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed:
+                                        _isOtpVerifying ? null : verifyOtp,
+                                    icon: _isOtpVerifying
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                      Colors.white),
+                                            ),
+                                          )
+                                        : const Icon(Icons.verified),
+                                    label: Text(
+                                      _isOtpVerifying
+                                          ? 'Verificando...'
+                                          : 'Validar Código',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green.shade600,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -402,14 +678,97 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                       const SizedBox(height: 12),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(8),
+                          color: _otpMessage!.toLowerCase().contains('éxito') ||
+                                  _otpMessage!.toLowerCase().contains('éx') ||
+                                  _otpMessage!
+                                      .toLowerCase()
+                                      .contains('correcto')
+                              ? Colors.green.shade50
+                              : _otpMessage!.toLowerCase().contains('error') ||
+                                      _otpMessage!
+                                          .toLowerCase()
+                                          .contains('inválido')
+                                  ? Colors.red.shade50
+                                  : _ucevaGreenSoft,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color:
+                                _otpMessage!.toLowerCase().contains('éxito') ||
+                                        _otpMessage!
+                                            .toLowerCase()
+                                            .contains('correcto')
+                                    ? Colors.green.shade200
+                                    : _otpMessage!
+                                                .toLowerCase()
+                                                .contains('error') ||
+                                            _otpMessage!
+                                                .toLowerCase()
+                                                .contains('inválido')
+                                        ? Colors.red.shade200
+                                        : _ucevaGreenBorder,
+                          ),
                         ),
-                        child: Text(
-                          _otpMessage!,
-                          style: TextStyle(color: Colors.green.shade900),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _otpMessage!.toLowerCase().contains('éxito') ||
+                                      _otpMessage!
+                                          .toLowerCase()
+                                          .contains('correcto')
+                                  ? Icons.check_circle
+                                  : _otpMessage!
+                                              .toLowerCase()
+                                              .contains('error') ||
+                                          _otpMessage!
+                                              .toLowerCase()
+                                              .contains('inválido')
+                                      ? Icons.error_outline
+                                      : Icons.info_outline,
+                              color: _otpMessage!
+                                          .toLowerCase()
+                                          .contains('éxito') ||
+                                      _otpMessage!
+                                          .toLowerCase()
+                                          .contains('correcto')
+                                  ? Colors.green.shade700
+                                  : _otpMessage!
+                                              .toLowerCase()
+                                              .contains('error') ||
+                                          _otpMessage!
+                                              .toLowerCase()
+                                              .contains('inválido')
+                                      ? Colors.red.shade700
+                                      : _ucevaGreen,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _otpMessage!,
+                                style: TextStyle(
+                                  color: _otpMessage!
+                                              .toLowerCase()
+                                              .contains('éxito') ||
+                                          _otpMessage!
+                                              .toLowerCase()
+                                              .contains('correcto')
+                                      ? Colors.green.shade900
+                                      : _otpMessage!
+                                                  .toLowerCase()
+                                                  .contains('error') ||
+                                              _otpMessage!
+                                                  .toLowerCase()
+                                                  .contains('inválido')
+                                          ? Colors.red.shade900
+                                          : _ucevaGreenDark,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
