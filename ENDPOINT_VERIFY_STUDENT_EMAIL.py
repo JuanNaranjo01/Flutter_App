@@ -19,11 +19,16 @@ Copia todo el código desde la línea ~12 en adelante
 from flask import request, jsonify
 from psycopg2.extras import RealDictCursor
 
-# ============================================================================
-# ENDPOINT PARA VERIFICAR EMAIL DE ESTUDIANTE (GOOGLE SIGN IN)
-# ============================================================================
+# Registrar en la aplicación principal que corre bajo gunicorn
+# Importar `app` y `get_db_connection` desde el módulo principal
+try:
+    from verify_teacher_email import app, get_db_connection
+    print('✅ Imported app and get_db_connection from verify_teacher_email')
+except Exception as e:
+    # Si no está disponible en este contexto, dejamos una nota en logs
+    print(f'⚠️ No se pudo importar app/get_db_connection desde verify_teacher_email: {e}')
+    app = None
 
-@app.route('/api/student/verify-email', methods=['POST'])
 def verify_student_email():
     """
     Verifica que el email del estudiante exista en la BD.
@@ -71,6 +76,8 @@ def verify_student_email():
     """
     try:
         data = request.get_json()
+        # DEBUG: registrar body recibido
+        print(f"🔔 verify_student_email - request body: {data}")
         
         # Validar que los parámetros estén presentes
         if not data:
@@ -89,9 +96,17 @@ def verify_student_email():
             }), 400
         
         # Conectar a la BD
-        conn = get_db_connection()  # ⬅️ Ajusta esto si tu función se llama diferente
-        
-        if not conn:
+        try:
+            conn = get_db_connection()  # ⬅️ Ajusta esto si tu función se llama diferente
+            print("🔌 get_db_connection() ejecutada correctamente")
+        except NameError as ne:
+            print(f"❌ get_db_connection no encontrada: {ne}")
+            return jsonify({
+                'success': False,
+                'message': 'get_db_connection no definida en la app'
+            }), 500
+        except Exception as conn_err:
+            print(f"❌ Error al obtener conexión a BD: {conn_err}")
             return jsonify({
                 'success': False,
                 'message': 'Error de conexión a la base de datos'
@@ -100,19 +115,22 @@ def verify_student_email():
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
-            # PASO 1: Buscar al estudiante por código
+            # PASO 1: Buscar al estudiante por código (columnas reales proporcionadas)
             query_student = """
-                SELECT 
-                    "Codigo" as codigo,
-                    "Nombre" as nombre,
-                    "Correo_institucional" as correo_institucional
+                SELECT
+                    codigo_estudiante as codigo,
+                    nombre as nombre,
+                    apellidos as apellidos,
+                    email_institucional as email_institucional
                 FROM estudiantes
-                WHERE "Codigo" = %s
+                WHERE codigo_estudiante = %s
                 LIMIT 1
             """
             
             cursor.execute(query_student, (codigo_estudiante,))
             student = cursor.fetchone()
+            # DEBUG: mostrar resultado bruto de la consulta
+            print(f"🔎 Resultado consulta estudiante para {codigo_estudiante}: {student}")
             
             # Si no existe el estudiante
             if not student:
@@ -125,9 +143,13 @@ def verify_student_email():
                 }), 404
             
             # PASO 2: Comparar el email proporcionado con el de la BD
-            email_en_bd = student.get('correo_institucional', '').lower().strip()
+            email_en_bd = student.get('email_institucional', '')
+            email_en_bd_norm = (email_en_bd or '').lower().strip()
+            print(f"   - email recibido: {email}")
+            print(f"   - email en BD raw: {email_en_bd}")
+            print(f"   - email en BD normalizado: {email_en_bd_norm}")
             
-            if email == email_en_bd:
+            if email == email_en_bd_norm:
                 # ✅ Email válido - proceder con Google Sign In
                 cursor.close()
                 conn.close()
@@ -136,19 +158,25 @@ def verify_student_email():
                     'success': True,
                     'message': 'Email verificado correctamente',
                     'student': {
-                        'codigo': student['codigo'],
-                        'nombre': student['nombre'],
-                        'correo_institucional': student['correo_institucional']
+                        'codigo': student.get('codigo'),
+                        'nombre': student.get('nombre'),
+                        'apellidos': student.get('apellidos'),
+                        'email_institucional': student.get('email_institucional')
                     }
                 }), 200
             else:
                 # ❌ Email no coincide
                 cursor.close()
                 conn.close()
-                print(f"❌ Email no coincide: {email} != {email_en_bd}")
+                print(f"❌ Email no coincide: {email} != {email_en_bd_norm}")
                 return jsonify({
                     'success': False,
-                    'message': f'El email {email} no coincide con el registro del estudiante. Email esperado: {email_en_bd}'
+                    'message': f'El email {email} no coincide con el registro del estudiante. Email esperado: {email_en_bd_norm}',
+                    'debug': {
+                        'email_recibido': email,
+                        'email_en_bd': email_en_bd,
+                        'codigo_estudiante': codigo_estudiante
+                    }
                 }), 200  # Devolver 200 pero success=false para que el cliente sepa que fue un error de validación
             
         except Exception as db_error:
@@ -159,6 +187,12 @@ def verify_student_email():
                 'success': False,
                 'message': f'Error al consultar la base de datos: {str(db_error)}'
             }), 500
+    except Exception as e:
+        print(f"❌ Error en verify_student_email: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error del servidor: {str(e)}'
+        }), 500
     
     except Exception as e:
         print(f"❌ Error en verify_student_email: {str(e)}")
@@ -168,28 +202,39 @@ def verify_student_email():
         }), 500
 
 
+# Registrar la ruta en la app principal si está disponible (gunicorn usa verify_teacher_email.py)
+if app:
+    try:
+        app.add_url_rule('/api/student/verify-email', 'verify_student_email', verify_student_email, methods=['POST'])
+        print('🔗 Ruta /api/student/verify-email registrada en app')
+    except Exception as e:
+        print(f'❌ Error registrando ruta en app: {e}')
+
+
 # ============================================================================
 # INFORMACIÓN SOBRE LA TABLA DE ESTUDIANTES
 # ============================================================================
 """
-Asume que tu tabla de estudiantes tiene al menos estas columnas:
-- "Codigo" (VARCHAR): Código único del estudiante
-- "Nombre" (VARCHAR): Nombre completo
-- "Correo_institucional" (VARCHAR): Email institucional
+Asume que tu tabla de estudiantes tiene al menos estas columnas (según lo indicado):
+- `codigo_estudiante` (VARCHAR): Código único del estudiante
+- `nombre` (VARCHAR): Nombre
+- `apellidos` (VARCHAR): Apellidos
+- `email_institucional` (VARCHAR): Email institucional
+- `telefonos`, `movil`, `jornada` (opcional)
 
-Si tu estructura es diferente, AJUSTA el query SQL en la función verify_student_email()
+Si tu estructura es diferente, AJUSTA el query SQL en la función `verify_student_email()` para usar los nombres reales.
 
-Ejemplo de estructura típica:
+Ejemplo mínimo basado en tu esquema:
 CREATE TABLE estudiantes (
-    "Id_estudiante" SERIAL PRIMARY KEY,
-    "Codigo" VARCHAR(20) UNIQUE NOT NULL,
-    "Nombre" VARCHAR(255) NOT NULL,
-    "Apellido" VARCHAR(255),
-    "Correo_institucional" VARCHAR(255),
-    "Correo_personal" VARCHAR(255),
-    "Telefono" VARCHAR(20),
-    "Foto_perfil" TEXT,
-    "Fecha_registro" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id SERIAL PRIMARY KEY,
+    codigo_estudiante VARCHAR(50) UNIQUE NOT NULL,
+    nombre VARCHAR(255) NOT NULL,
+    apellidos VARCHAR(255),
+    email_institucional VARCHAR(255),
+    telefonos TEXT,
+    movil VARCHAR(50),
+    jornada VARCHAR(50),
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 """
 

@@ -119,6 +119,71 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
 
   // PASO 1: Buscar estudiante
   Future<void> _searchStudent() async {
+    // Plan B: en modo estudiante no pedimos código, usamos Google Sign-In
+    if (widget.isStudentMode) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      try {
+        final GoogleSignIn googleSignIn =
+            GoogleSignIn(scopes: ['email', 'profile']);
+        final account = await googleSignIn.signIn();
+        if (account == null) {
+          setState(() {
+            _errorMessage = 'Cancelaste el inicio de sesión';
+            _isLoading = false;
+          });
+          return;
+        }
+
+        final email = account.email;
+        print('✅ Google Sign-In (student mode): $email');
+
+        final response = await ApiService.verifyStudentByEmail(email: email);
+
+        if (!mounted) return;
+
+        if (response['success'] == true && response['student'] != null) {
+          // Mapear a Student (usar constructor existente si aplica)
+          final studentJson = response['student'];
+          final student = Student.fromJson(studentJson);
+
+          if (student.tieneEmbeddings) {
+            setState(() {
+              _foundStudent = null;
+              _errorMessage =
+                  'Ya tienes registro facial activo. Solo se permite un registro por estudiante.';
+              _isLoading = false;
+            });
+            return;
+          }
+
+          setState(() {
+            _foundStudent = student;
+            _isLoading = false;
+            _studentVerificationChecked = true; // ya está verificado por email
+          });
+
+          _showConfirmationDialog();
+        } else {
+          setState(() {
+            _errorMessage = response['message'] ?? 'Email no encontrado';
+            _isLoading = false;
+          });
+        }
+      } catch (e) {
+        setState(() {
+          _errorMessage = 'Error: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
+
+      return;
+    }
+
+    // Modo no estudiante: comportamiento previo (buscar por código)
     if (_codigoController.text.isEmpty) {
       setState(() {
         _errorMessage = 'Por favor ingresa el código del estudiante';
@@ -141,7 +206,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
           response.students!.isNotEmpty) {
         final student = response.students!.first;
 
-        if (widget.isStudentMode && student.emailInstitucional.trim().isEmpty) {
+        if (student.emailInstitucional.trim().isEmpty) {
           setState(() {
             _foundStudent = null;
             _errorMessage =
@@ -151,12 +216,12 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
           return;
         }
 
-        // En modo estudiante no se permite volver a registrar si ya tiene embeddings.
-        if (widget.isStudentMode && student.tieneEmbeddings) {
+        // En modo no estudiante no se permite volver a registrar si ya tiene embeddings.
+        if (student.tieneEmbeddings) {
           setState(() {
             _foundStudent = null;
             _errorMessage =
-                'Ya tienes registro facial activo. Solo se permite un registro por estudiante.';
+                'Ya tiene registro facial activo para este estudiante.';
             _isLoading = false;
           });
           return;
@@ -378,7 +443,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                     child: Icon(
                                       _studentVerificationChecked
                                           ? Icons.check_circle
-                                          : Icons.google,
+                                          : Icons.account_circle,
                                       color: Colors.white,
                                       size: 24,
                                     ),
@@ -833,10 +898,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       _isGoogleSigningIn = false;
       _studentVerificationChecked = false;
       _studentVerificationError = null;
-      _otpSessionToken = null;
-      _isOtpValidated = false;
-      _isOtpSending = false;
-      _isOtpVerifying = false;
+      // Removed OTP-related state (switched to Google Sign In flow)
       _cameraController = null;
       _isCameraInitialized = false;
     });
