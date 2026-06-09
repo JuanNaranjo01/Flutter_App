@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:async';
 import 'dart:io';
 import '../services/api_services.dart';
@@ -25,7 +26,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   static const Color _ucevaGreenBorder = Color(0xFFB7DEC4);
 
   final _codigoController = TextEditingController();
-  final _otpController = TextEditingController();
 
   // Estados del flujo
   Student? _foundStudent;
@@ -33,15 +33,10 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   bool _isLoading = false;
   bool _isProcessing = false;
   bool _isCapturing = false;
-  bool _isOtpSending = false;
-  bool _isOtpVerifying = false;
-  bool _isOtpValidated = false;
-  String? _otpSessionToken;
-  String? _otpMessage;
   String? _errorMessage;
-  int _otpRequestCooldownSeconds =
-      0; // Segundos restantes para re-solicitar OTP
-  Timer? _otpRequestTimer;
+  bool _isGoogleSigningIn = false;
+  bool _studentVerificationChecked = false;
+  String? _studentVerificationError;
 
   // Cámara
   CameraController? _cameraController;
@@ -52,29 +47,8 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   @override
   void dispose() {
     _codigoController.dispose();
-    _otpController.dispose();
     _cameraController?.dispose();
-    _otpRequestTimer?.cancel();
     super.dispose();
-  }
-
-  void _startOtpCooldown(int seconds, Function(VoidCallback) dialogSetState) {
-    _otpRequestTimer?.cancel();
-    setState(() {
-      _otpRequestCooldownSeconds = seconds;
-    });
-    dialogSetState(() {}); // Actualiza diálogo inicial
-
-    _otpRequestTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-      setState(() {
-        _otpRequestCooldownSeconds--;
-      });
-      dialogSetState(() {}); // Reconstruye el diálogo cada segundo
-
-      if (_otpRequestCooldownSeconds <= 0) {
-        _otpRequestTimer?.cancel();
-      }
-    });
   }
 
   Future<void> _initializeCamera() async {
@@ -232,76 +206,57 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
 
         return StatefulBuilder(
           builder: (context, dialogSetState) {
-            Future<void> requestOtp() async {
+            Future<void> verifyStudentWithGoogle() async {
               dialogSetState(() {
-                _isOtpSending = true;
-                _otpMessage = null;
+                _isGoogleSigningIn = true;
+                _studentVerificationError = null;
               });
 
               try {
-                final response = await ApiService.requestStudentOtp(
+                final GoogleSignIn googleSignIn = GoogleSignIn(
+                  scopes: ['email', 'profile'],
+                );
+
+                // Realizar Google Sign In
+                final account = await googleSignIn.signIn();
+                if (account == null) {
+                  dialogSetState(() {
+                    _isGoogleSigningIn = false;
+                    _studentVerificationError =
+                        'Cancelaste el inicio de sesión';
+                  });
+                  return;
+                }
+
+                final email = account.email;
+                print('✅ Google Sign-In exitoso: $email');
+
+                // Llamar al backend para verificar que este correo está en la BD
+                final response = await ApiService.verifyStudentEmail(
+                  email: email,
                   codigoEstudiante: student.codigo,
-                  emailInstitucional: student.emailInstitucional,
                 );
 
                 if (!mounted) return;
 
-                if (response.success) {
+                if (response['success'] == true) {
                   dialogSetState(() {
-                    _isOtpSending = false;
-                    _otpMessage = response.message;
+                    _isGoogleSigningIn = false;
+                    _studentVerificationChecked = true;
                   });
-                  _startOtpCooldown(60, dialogSetState);
                 } else {
                   dialogSetState(() {
-                    _isOtpSending = false;
-                    _otpMessage = response.message;
+                    _isGoogleSigningIn = false;
+                    _studentVerificationError =
+                        response['message'] ?? 'Email no válido';
                   });
                 }
               } catch (e) {
                 if (!mounted) return;
 
                 dialogSetState(() {
-                  _isOtpSending = false;
-                  _otpMessage = 'No se pudo enviar el OTP: $e';
-                });
-              }
-            }
-
-            Future<void> verifyOtp() async {
-              final otp = _otpController.text.trim();
-              if (otp.isEmpty) {
-                dialogSetState(() {
-                  _otpMessage = 'Ingresa el código OTP enviado al correo.';
-                });
-                return;
-              }
-
-              dialogSetState(() {
-                _isOtpVerifying = true;
-                _otpMessage = null;
-              });
-
-              try {
-                final response = await ApiService.verifyStudentOtp(
-                  codigoEstudiante: student.codigo,
-                  otpCode: otp,
-                );
-
-                if (!mounted) return;
-
-                dialogSetState(() {
-                  _isOtpVerifying = false;
-                  _isOtpValidated = true;
-                  _otpSessionToken = response.otpToken;
-                  _otpMessage = response.message;
-                });
-              } catch (e) {
-                if (!mounted) return;
-
-                dialogSetState(() {
-                  _isOtpVerifying = false;
-                  _otpMessage = 'OTP inválido o expirado: $e';
+                  _isGoogleSigningIn = false;
+                  _studentVerificationError = 'Error: ${e.toString()}';
                 });
               }
             }
@@ -415,15 +370,15 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: _isOtpValidated
+                                      color: _studentVerificationChecked
                                           ? Colors.green.shade500
                                           : _ucevaGreen,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Icon(
-                                      _isOtpValidated
+                                      _studentVerificationChecked
                                           ? Icons.check_circle
-                                          : Icons.email_outlined,
+                                          : Icons.google,
                                       color: Colors.white,
                                       size: 24,
                                     ),
@@ -435,7 +390,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Verificación por Email',
+                                          'Verificación con Google',
                                           style: TextStyle(
                                             fontWeight: FontWeight.w800,
                                             fontSize: 14,
@@ -443,9 +398,9 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                           ),
                                         ),
                                         Text(
-                                          _isOtpValidated
-                                              ? '✓ Completado'
-                                              : 'Paso 1 de 2',
+                                          _studentVerificationChecked
+                                              ? '✓ Verificado'
+                                              : 'Inicia sesión con tu correo institucional',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: _ucevaGreen,
@@ -458,7 +413,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                 ],
                               ),
                               const SizedBox(height: 16),
-                              if (_isOtpValidated) ...[
+                              if (_studentVerificationChecked) ...[
                                 Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(12),
@@ -493,149 +448,22 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                 ),
                               ] else ...[
                                 Text(
-                                  'Te enviaremos un código a:',
+                                  'Haz clic en el botón para iniciar sesión con Google usando tu correo institucional:',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: _ucevaGreenDark,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.6),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    student.emailInstitucional,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: _ucevaGreenDark,
-                                    ),
-                                  ),
-                                ),
                                 const SizedBox(height: 14),
-                                // Botón Enviar OTP
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 300),
-                                    child: ElevatedButton.icon(
-                                      onPressed: (_isOtpSending ||
-                                              _otpRequestCooldownSeconds > 0)
-                                          ? null
-                                          : requestOtp,
-                                      icon: _isOtpSending
-                                          ? const SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor:
-                                                    AlwaysStoppedAnimation<
-                                                        Color>(Colors.white),
-                                              ),
-                                            )
-                                          : Icon(
-                                              _otpRequestCooldownSeconds > 0
-                                                  ? Icons.schedule
-                                                  : Icons.mark_email_read,
-                                            ),
-                                      label: Text(
-                                        _isOtpSending
-                                            ? 'Enviando código...'
-                                            : (_otpRequestCooldownSeconds > 0
-                                                ? 'Intenta en ${_otpRequestCooldownSeconds}s'
-                                                : 'Enviar código OTP'),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            _otpRequestCooldownSeconds > 0
-                                                ? Colors.grey.shade400
-                                                : _ucevaGreen,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                // Campo OTP
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Código de 6 dígitos',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: _ucevaGreenDark,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    TextField(
-                                      controller: _otpController,
-                                      keyboardType: TextInputType.number,
-                                      maxLength: 6,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 8,
-                                      ),
-                                      decoration: InputDecoration(
-                                        counterText: '',
-                                        hintText: '• • • • • •',
-                                        hintStyle: TextStyle(
-                                          fontSize: 20,
-                                          color: _ucevaGreenBorder,
-                                          letterSpacing: 6,
-                                        ),
-                                        border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          borderSide: BorderSide(
-                                            color: _ucevaGreenBorder,
-                                          ),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          borderSide: BorderSide(
-                                            color: _ucevaGreen,
-                                            width: 2,
-                                          ),
-                                        ),
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                          vertical: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-                                // Botón Validar
+                                // Botón Google Sign In
                                 SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
-                                    onPressed:
-                                        _isOtpVerifying ? null : verifyOtp,
-                                    icon: _isOtpVerifying
+                                    onPressed: _isGoogleSigningIn
+                                        ? null
+                                        : verifyStudentWithGoogle,
+                                    icon: _isGoogleSigningIn
                                         ? const SizedBox(
                                             width: 16,
                                             height: 16,
@@ -646,18 +474,18 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                                       Colors.white),
                                             ),
                                           )
-                                        : const Icon(Icons.verified),
+                                        : const Icon(Icons.login),
                                     label: Text(
-                                      _isOtpVerifying
-                                          ? 'Verificando...'
-                                          : 'Validar Código',
+                                      _isGoogleSigningIn
+                                          ? 'Iniciando sesión...'
+                                          : 'Iniciar sesión con Google',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 13,
                                       ),
                                     ),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green.shade600,
+                                      backgroundColor: _ucevaGreen,
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 12,
@@ -668,107 +496,44 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                     ),
                                   ),
                                 ),
+                                if (_studentVerificationError != null) ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.red.shade200,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.error_outline,
+                                          color: Colors.red.shade700,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            _studentVerificationError!,
+                                            style: TextStyle(
+                                              color: Colors.red.shade900,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ],
                             ],
                           ),
-                        ),
-                      ),
-                    ],
-                    if (_otpMessage != null) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: _otpMessage!.toLowerCase().contains('éxito') ||
-                                  _otpMessage!.toLowerCase().contains('éx') ||
-                                  _otpMessage!
-                                      .toLowerCase()
-                                      .contains('correcto')
-                              ? Colors.green.shade50
-                              : _otpMessage!.toLowerCase().contains('error') ||
-                                      _otpMessage!
-                                          .toLowerCase()
-                                          .contains('inválido')
-                                  ? Colors.red.shade50
-                                  : _ucevaGreenSoft,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color:
-                                _otpMessage!.toLowerCase().contains('éxito') ||
-                                        _otpMessage!
-                                            .toLowerCase()
-                                            .contains('correcto')
-                                    ? Colors.green.shade200
-                                    : _otpMessage!
-                                                .toLowerCase()
-                                                .contains('error') ||
-                                            _otpMessage!
-                                                .toLowerCase()
-                                                .contains('inválido')
-                                        ? Colors.red.shade200
-                                        : _ucevaGreenBorder,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              _otpMessage!.toLowerCase().contains('éxito') ||
-                                      _otpMessage!
-                                          .toLowerCase()
-                                          .contains('correcto')
-                                  ? Icons.check_circle
-                                  : _otpMessage!
-                                              .toLowerCase()
-                                              .contains('error') ||
-                                          _otpMessage!
-                                              .toLowerCase()
-                                              .contains('inválido')
-                                      ? Icons.error_outline
-                                      : Icons.info_outline,
-                              color: _otpMessage!
-                                          .toLowerCase()
-                                          .contains('éxito') ||
-                                      _otpMessage!
-                                          .toLowerCase()
-                                          .contains('correcto')
-                                  ? Colors.green.shade700
-                                  : _otpMessage!
-                                              .toLowerCase()
-                                              .contains('error') ||
-                                          _otpMessage!
-                                              .toLowerCase()
-                                              .contains('inválido')
-                                      ? Colors.red.shade700
-                                      : _ucevaGreen,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _otpMessage!,
-                                style: TextStyle(
-                                  color: _otpMessage!
-                                              .toLowerCase()
-                                              .contains('éxito') ||
-                                          _otpMessage!
-                                              .toLowerCase()
-                                              .contains('correcto')
-                                      ? Colors.green.shade900
-                                      : _otpMessage!
-                                                  .toLowerCase()
-                                                  .contains('error') ||
-                                              _otpMessage!
-                                                  .toLowerCase()
-                                                  .contains('inválido')
-                                          ? Colors.red.shade900
-                                          : _ucevaGreenDark,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
                     ],
@@ -784,12 +549,13 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                   child: const Text('Cancelar'),
                 ),
                 ElevatedButton(
-                  onPressed: widget.isStudentMode && !_isOtpValidated
-                      ? null
-                      : () {
-                          Navigator.pop(context);
-                          _initializeCamera();
-                        },
+                  onPressed:
+                      widget.isStudentMode && !_studentVerificationChecked
+                          ? null
+                          : () {
+                              Navigator.pop(context);
+                              _initializeCamera();
+                            },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF3b82f6),
                     foregroundColor: Colors.white,
@@ -854,9 +620,9 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
     final student = _foundStudent;
     if (student == null || _capturedFrames == null) return;
 
-    if (widget.isStudentMode && !_isOtpValidated) {
+    if (widget.isStudentMode && !_studentVerificationChecked) {
       _showErrorDialog(
-        'Primero debes validar el OTP enviado a tu correo institucional.',
+        'Primero debes verificar tu identidad con Google.',
       );
       setState(() {
         _isProcessing = false;
@@ -874,7 +640,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         codigoEstudiante: student.codigo,
         images: _capturedFrames!,
         forceUpdate: widget.isStudentMode ? false : student.tieneEmbeddings,
-        otpToken: widget.isStudentMode ? _otpSessionToken : null,
       );
 
       if (!mounted) return;
@@ -1064,9 +829,10 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       _foundStudent = null;
       _capturedFrames = null;
       _codigoController.clear();
-      _otpController.clear();
       _errorMessage = null;
-      _otpMessage = null;
+      _isGoogleSigningIn = false;
+      _studentVerificationChecked = false;
+      _studentVerificationError = null;
       _otpSessionToken = null;
       _isOtpValidated = false;
       _isOtpSending = false;

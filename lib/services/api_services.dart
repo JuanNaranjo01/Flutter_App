@@ -224,12 +224,27 @@ class ApiService {
           );
 
       final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+      final serverMessage = (responseData['message'] ?? response.body).toString();
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return OtpRequestResponse.fromJson(responseData);
       }
 
-      throw Exception(responseData['message'] ?? 'No se pudo solicitar el OTP');
+      final lowerMessage = serverMessage.toLowerCase();
+      if (response.statusCode == 403 ||
+          lowerMessage.contains('validation_error') ||
+          lowerMessage.contains('testing emails') ||
+          lowerMessage.contains('verify a domain') ||
+          lowerMessage.contains('resend error 403')) {
+        throw Exception(
+          'El correo no pudo enviarse porque Resend está en modo de prueba. ' \
+          'Debes verificar un dominio y usar un remitente de ese dominio para enviar OTP a otros estudiantes.',
+        );
+      }
+
+      throw Exception(serverMessage.isNotEmpty
+          ? serverMessage
+          : 'No se pudo solicitar el OTP');
     } on TimeoutException {
       rethrow;
     } on SocketException {
@@ -1256,6 +1271,54 @@ class ApiService {
       throw Exception('Tiempo de espera agotado.');
     } catch (e) {
       print('❌ Error en calcularHorasFaltadas: $e');
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+
+  /// Verifica que el email del estudiante exista en la BD
+  static Future<Map<String, dynamic>> verifyStudentEmail({
+    required String email,
+    required String codigoEstudiante,
+  }) async {
+    try {
+      print('🔍 Verificando email del estudiante: $email');
+
+      final response = await _httpClient
+          .post(
+            Uri.parse('${ApiConfig.baseUrl}/api/student/verify-email'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': email,
+              'codigo_estudiante': codigoEstudiante,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      print('📡 Respuesta verificación email - Status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Email verificado: ${data['success']}');
+        return data;
+      } else if (response.statusCode == 404) {
+        return {
+          'success': false,
+          'message': 'Email no encontrado en la BD de estudiantes',
+        };
+      } else if (response.statusCode == 400) {
+        return {
+          'success': false,
+          'message': 'Email o código de estudiante inválido',
+        };
+      } else {
+        throw Exception('Error ${response.statusCode}: ${response.body}');
+      }
+    } on SocketException {
+      throw Exception('Error de conexión. Verifica tu conexión a internet.');
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado.');
+    } catch (e) {
+      print('❌ Error en verifyStudentEmail: $e');
       throw Exception('Error: ${e.toString()}');
     }
   }
