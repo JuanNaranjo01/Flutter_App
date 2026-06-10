@@ -1275,6 +1275,20 @@ class ApiService {
     }
   }
 
+  static bool _isMissingBackendRoute(http.Response response) {
+    if (response.statusCode != 404) return false;
+    final body = response.body.toLowerCase();
+    return body.contains('<title>404 not found</title>') ||
+        body.contains('was not found on the server');
+  }
+
+  static Never _throwMissingStudentVerifyEndpoint() {
+    throw Exception(
+      'El servidor no tiene el endpoint POST /api/verify-student. '
+      'Verifica que esté registrado en Flask y reinicia el servidor.',
+    );
+  }
+
   /// Verifica que el email del estudiante exista en la BD
   static Future<Map<String, dynamic>> verifyStudentEmail({
     required String email,
@@ -1285,16 +1299,22 @@ class ApiService {
 
       final response = await _httpClient
           .post(
-            Uri.parse('${ApiConfig.baseUrl}/api/student/verify-email'),
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.verifyStudentEndpoint}'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'email': email,
-              'codigo_estudiante': codigoEstudiante,
+              if (codigoEstudiante.isNotEmpty)
+                'codigo_estudiante': codigoEstudiante,
             }),
           )
           .timeout(const Duration(seconds: 10));
 
       print('📡 Respuesta verificación email - Status: ${response.statusCode}');
+
+      if (_isMissingBackendRoute(response)) {
+        _throwMissingStudentVerifyEndpoint();
+      }
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -1323,7 +1343,7 @@ class ApiService {
     }
   }
 
-  /// Verifica estudiante solo por email (Plan B)
+  /// Verifica estudiante solo por email (modo estudiante / Plan B)
   static Future<Map<String, dynamic>> verifyStudentByEmail({
     required String email,
   }) async {
@@ -1332,7 +1352,8 @@ class ApiService {
 
       final response = await _httpClient
           .post(
-            Uri.parse('${ApiConfig.baseUrl}/api/student/verify-email'),
+            Uri.parse(
+                '${ApiConfig.baseUrl}${ApiConfig.verifyStudentEndpoint}'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'email': email}),
           )
@@ -1341,13 +1362,17 @@ class ApiService {
       print(
           '📡 Respuesta verificación email (by email) - Status: ${response.statusCode}');
 
+      if (_isMissingBackendRoute(response)) {
+        _throwMissingStudentVerifyEndpoint();
+      }
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data;
       } else if (response.statusCode == 404) {
         return {
           'success': false,
-          'message': 'Email no encontrado en la BD de estudiantes'
+          'message': 'Email no encontrado en la BD de estudiantes',
         };
       } else if (response.statusCode == 400) {
         return {'success': false, 'message': 'Email inválido'};

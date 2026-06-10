@@ -129,7 +129,16 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       try {
         final GoogleSignIn googleSignIn =
             GoogleSignIn(scopes: ['email', 'profile']);
+        print('googleSignIn: attempting signOut to force account chooser');
+        try {
+          await googleSignIn.signOut();
+          print('googleSignIn: signOut successful');
+        } catch (e) {
+          print('googleSignIn: signOut error: $e');
+        }
+        print('googleSignIn: calling signIn() to show account chooser');
         final account = await googleSignIn.signIn();
+        print('googleSignIn: signIn returned account=${account?.email}');
         if (account == null) {
           setState(() {
             _errorMessage = 'Cancelaste el inicio de sesión';
@@ -146,19 +155,26 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         if (!mounted) return;
 
         if (response['success'] == true && response['student'] != null) {
-          // Mapear a Student (usar constructor existente si aplica)
+          // Mapear a Student - el backend solo devuelve campos básicos
           final studentJson = response['student'];
-          final student = Student.fromJson(studentJson);
-
-          if (student.tieneEmbeddings) {
-            setState(() {
-              _foundStudent = null;
-              _errorMessage =
-                  'Ya tienes registro facial activo. Solo se permite un registro por estudiante.';
-              _isLoading = false;
-            });
-            return;
-          }
+          final nombre = studentJson['nombre'] ?? '';
+          final apellidos = studentJson['apellidos'] ?? '';
+          
+          // Construir Student con valores por defecto para campos faltantes
+          final student = Student(
+            codigo: studentJson['codigo'] ?? '',
+            nombreCompleto: '$nombre $apellidos'.trim(),
+            nombre: nombre,
+            apellidos: apellidos,
+            emailInstitucional: studentJson['email_institucional'] ?? '',
+            emailPersonal: '',
+            programa: '',
+            semestre: 0,
+            movil: '',
+            telefonos: '',
+            tieneEmbeddings: false, // El backend no devuelve este campo
+            numEmbeddings: 0,
+          );
 
           setState(() {
             _foundStudent = student;
@@ -987,18 +1003,19 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              TextField(
-                                controller: _codigoController,
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  hintText: 'Ingresa tu código de estudiante',
-                                  prefixIcon: const Icon(Icons.badge),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                              if (!widget.isStudentMode)
+                                TextField(
+                                  controller: _codigoController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    hintText: 'Ingresa tu código de estudiante',
+                                    prefixIcon: const Icon(Icons.badge),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
+                                  onSubmitted: (_) => _searchStudent(),
                                 ),
-                                onSubmitted: (_) => _searchStudent(),
-                              ),
                               const SizedBox(height: 16),
                               if (widget.isStudentMode)
                                 Container(
@@ -1072,10 +1089,16 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                                               strokeWidth: 2,
                                               color: Colors.white),
                                         )
-                                      : const Icon(Icons.search),
+                                      : (widget.isStudentMode
+                                          ? const Icon(Icons.login)
+                                          : const Icon(Icons.search)),
                                   label: Text(_isLoading
-                                      ? 'Buscando...'
-                                      : 'Buscar Estudiante'),
+                                      ? (widget.isStudentMode
+                                          ? 'Iniciando sesión...'
+                                          : 'Buscando...')
+                                      : (widget.isStudentMode
+                                          ? 'Iniciar sesión con Google'
+                                          : 'Buscar Estudiante')),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF007f2f),
                                     foregroundColor: Colors.white,

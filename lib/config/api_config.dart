@@ -14,6 +14,9 @@ class ApiConfig {
   static const String studentOtpRequestEndpoint =
       '$apiPath/student/request-otp';
   static const String studentOtpVerifyEndpoint = '$apiPath/student/verify-otp';
+  static const String verifyStudentEndpoint = '$apiPath/verify-student';
+  static const String studentVerifyEmailEndpoint =
+      '$apiPath/student/verify-email';
 
   // Endpoints de reconocimiento y asistencia
   static const String recognizeAndMarkEndpoint = '$apiPath/recognize_mobile';

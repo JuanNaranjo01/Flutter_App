@@ -154,6 +154,98 @@ def health_check():
     }), 200
 
 
+@app.route('/api/student/verify-email', methods=['POST'])
+def verify_student_email():
+    """Verifica que el email del estudiante exista en la BD.
+
+    Comportamiento:
+      - Si llega `codigo_estudiante` en el body: busca por código y compara el email proporcionado
+      - Si NO llega código: busca por email y devuelve el registro si existe
+    Request Body ejemplo:
+      {"email": "estudiante@uceva.edu.co"}
+      {"email": "estudiante@uceva.edu.co", "codigo_estudiante": "20221234567"}
+    """
+    try:
+        data = request.get_json()
+        print(f"🔔 verify_student_email - request body: {data}")
+
+        if not data or 'email' not in data:
+            return jsonify({'success': False, 'message': 'Email es requerido'}), 400
+
+        email = data.get('email', '').lower().strip()
+        codigo = data.get('codigo_estudiante', '')
+
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'success': False, 'message': 'Error de conexión a la base de datos'}), 500
+
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+            if codigo:
+                # Buscar por código y comparar email
+                query = """
+                    SELECT
+                        codigo_estudiante as codigo,
+                        nombre as nombre,
+                        apellidos as apellidos,
+                        email_institucional as email_institucional
+                    FROM estudiantes
+                    WHERE codigo_estudiante = %s
+                    LIMIT 1
+                """
+                cursor.execute(query, (codigo,))
+                student = cursor.fetchone()
+                print(f"🔎 Consulta por codigo {codigo}: {student}")
+                if not student:
+                    cursor.close(); conn.close()
+                    return jsonify({'success': False, 'message': f'Estudiante con código {codigo} no encontrado'}), 404
+
+                email_bd = (student.get('email_institucional') or '').lower().strip()
+                if email == email_bd:
+                    cursor.close(); conn.close()
+                    return jsonify({'success': True, 'message': 'Email verificado correctamente', 'student': dict(student)}), 200
+                else:
+                    cursor.close(); conn.close()
+                    return jsonify({'success': False, 'message': 'El email no coincide con el registro del estudiante', 'debug': {'email_recibido': email, 'email_en_bd': email_bd, 'codigo_estudiante': codigo}}), 200
+            else:
+                # Buscar por email directamente
+                query = """
+                    SELECT
+                        codigo_estudiante as codigo,
+                        nombre as nombre,
+                        apellidos as apellidos,
+                        email_institucional as email_institucional
+                    FROM estudiantes
+                    WHERE LOWER(email_institucional) = %s
+                    LIMIT 1
+                """
+                cursor.execute(query, (email,))
+                student = cursor.fetchone()
+                print(f"🔎 Consulta por email {email}: {student}")
+                cursor.close(); conn.close()
+                if student:
+                    return jsonify({'success': True, 'message': 'Email encontrado', 'student': dict(student)}), 200
+                else:
+                    return jsonify({'success': False, 'message': f'Email {email} no encontrado en la BD'}), 404
+
+        except Exception as e:
+            print(f"❌ Error en la consulta SQL verify_student_email: {e}")
+            try:
+                cursor.close()
+            except:
+                pass
+            try:
+                conn.close()
+            except:
+                pass
+            return jsonify({'success': False, 'message': f'Error en la consulta: {str(e)}'}), 500
+
+    except Exception as e:
+        print(f"❌ Error en verify_student_email: {e}")
+        return jsonify({'success': False, 'message': f'Error del servidor: {str(e)}'}), 500
+
+
 if __name__ == '__main__':
     print("=" * 60)
     print("🚀 Servidor AsistenciaGuard UCEVA")
