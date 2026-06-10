@@ -931,6 +931,180 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   }
 
   Widget _buildSearchScreen() {
+    if (widget.isStudentMode) {
+      return _buildStudentLoginScreen();
+    }
+    return _buildTeacherSearchScreen();
+  }
+
+  // Pantalla de login para modo estudiante
+  Widget _buildStudentLoginScreen() {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF007f2f), Color(0xFF009938)],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Ícono principal
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.face_retouching_natural,
+                      color: Colors.white,
+                      size: 56,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Registro Facial',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Inicia sesión con tu correo\ninstitucional para continuar',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  // Card del botón
+                  Card(
+                    elevation: 12,
+                    shadowColor: Colors.black26,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Error
+                          if (_errorMessage != null) ...[
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error_outline,
+                                      color: Colors.red.shade700, size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _errorMessage!,
+                                      style: TextStyle(
+                                          color: Colors.red.shade800,
+                                          fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          // Botón Google
+                          SizedBox(
+                            height: 54,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _searchStudent,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF1F2937),
+                                elevation: 2,
+                                side: BorderSide(
+                                    color: Colors.grey.shade300, width: 1.5),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                Color(0xFF007f2f)),
+                                      ),
+                                    )
+                                  : Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Image.network(
+                                          'https://www.google.com/favicon.ico',
+                                          width: 20,
+                                          height: 20,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  const Icon(Icons.login,
+                                                      size: 20,
+                                                      color: Color(0xFF4285F4)),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        const Text(
+                                          'Continuar con Google',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Usa tu correo @uceva.edu.co',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Pantalla de búsqueda para modo docente (sin cambios)
+  Widget _buildTeacherSearchScreen() {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: Stack(
@@ -951,11 +1125,11 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                     ),
                     child: SafeArea(
                       child: Padding(
-                        padding: EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
+                          children: const [
                             Text(
                               'Registro de Embeddings',
                               style: TextStyle(
@@ -966,9 +1140,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                             ),
                             SizedBox(height: 4),
                             Text(
-                              widget.isStudentMode
-                                  ? 'Captura automática con video (registro único)'
-                                  : 'Captura automática con video',
+                              'Captura automática con video',
                               style: TextStyle(
                                 color: Color(0xFFBFDBFE),
                                 fontSize: 14,
@@ -984,198 +1156,88 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Card(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        elevation: 4,
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Buscar Estudiante',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              if (!widget.isStudentMode)
-                                TextField(
-                                  controller: _codigoController,
-                                  keyboardType: TextInputType.number,
-                                  decoration: InputDecoration(
-                                    hintText: 'Ingresa tu código de estudiante',
-                                    prefixIcon: const Icon(Icons.badge),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  onSubmitted: (_) => _searchStudent(),
-                                ),
-                              const SizedBox(height: 16),
-                              if (widget.isStudentMode)
-                                Container(
-                                  width: double.infinity,
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange.shade50,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: Colors.orange.shade300,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Icon(
-                                        Icons.lock_outline,
-                                        color: Colors.orange.shade800,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          'Modo estudiante: solo se permite un registro facial y no se puede actualizar.',
-                                          style: TextStyle(
-                                            color: Colors.orange.shade900,
-                                            fontSize: 13,
-                                            height: 1.35,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              if (_errorMessage != null)
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.error_outline,
-                                          color: Colors.red.shade900),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          _errorMessage!,
-                                          style: TextStyle(
-                                              color: Colors.red.shade900),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              if (_errorMessage == null)
-                                const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: _isLoading ? null : _searchStudent,
-                                  icon: _isLoading
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white),
-                                        )
-                                      : (widget.isStudentMode
-                                          ? const Icon(Icons.login)
-                                          : const Icon(Icons.search)),
-                                  label: Text(_isLoading
-                                      ? (widget.isStudentMode
-                                          ? 'Iniciando sesión...'
-                                          : 'Buscando...')
-                                      : (widget.isStudentMode
-                                          ? 'Iniciar sesión con Google'
-                                          : 'Buscar Estudiante')),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF007f2f),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 14),
-                                  ),
-                                ),
-                              ),
-                            ],
+                  child: Card(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Buscar Estudiante',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      // Card de instrucciones
-                      Card(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        color: Colors.blue.shade50,
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: _codigoController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              hintText: 'Ingresa el código del estudiante',
+                              prefixIcon: const Icon(Icons.badge),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onSubmitted: (_) => _searchStudent(),
+                          ),
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
                                 children: [
-                                  Icon(Icons.info_outline,
-                                      size: 28, color: Colors.blue.shade700),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Instrucciones',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue.shade900,
-                                    ),
+                                  Icon(Icons.error_outline,
+                                      color: Colors.red.shade900),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(_errorMessage!,
+                                        style: TextStyle(
+                                            color: Colors.red.shade900)),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 16),
-                              _buildInstructionItem(
-                                number: '1',
-                                text: 'Ingresa el código del estudiante',
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _isLoading ? null : _searchStudent,
+                              icon: _isLoading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Icon(Icons.search),
+                              label: Text(
+                                  _isLoading ? 'Buscando...' : 'Buscar Estudiante'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF007f2f),
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
                               ),
-                              const SizedBox(height: 12),
-                              _buildInstructionItem(
-                                number: '2',
-                                text: 'Verifica que sea el estudiante correcto',
-                              ),
-                              const SizedBox(height: 12),
-                              _buildInstructionItem(
-                                number: '3',
-                                text: 'Posiciona la cámara centrada al rostro',
-                              ),
-                              const SizedBox(height: 12),
-                              _buildInstructionItem(
-                                number: '4',
-                                text: 'Busca una buena iluminación',
-                              ),
-                              if (widget.isStudentMode) ...[
-                                const SizedBox(height: 12),
-                                _buildInstructionItem(
-                                  number: '5',
-                                  text:
-                                      'Este modo permite un solo registro y no admite actualización de rostro',
-                                ),
-                              ],
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          // Overlay de procesamiento
           if (_isProcessing)
             Container(
               color: Colors.black.withValues(alpha: 0.7),
@@ -1190,21 +1252,13 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                       children: [
                         const CircularProgressIndicator(),
                         const SizedBox(height: 20),
-                        const Text(
-                          'Procesando imágenes...',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        const Text('Procesando imágenes...',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
-                        Text(
-                          'Enviando al servidor',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
+                        Text('Enviando al servidor',
+                            style: TextStyle(
+                                fontSize: 14, color: Colors.grey.shade600)),
                       ],
                     ),
                   ),
@@ -1213,49 +1267,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
             ),
         ],
       ),
-    );
-  }
-
-  Widget _buildInstructionItem({
-    required String number,
-    required String text,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: const BoxDecoration(
-            color: Color(0xFF007f2f),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              number,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF1B5E20),
-                height: 1.4,
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
