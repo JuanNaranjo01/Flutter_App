@@ -254,22 +254,13 @@ class StudentSessionScreen extends StatefulWidget {
 
 class _StudentSessionScreenState extends State<StudentSessionScreen> {
   int _selectedIndex = 1;
-
-  final List<Widget> _screens = const [
-    DashboardScreen(),
-    FaceRegistrationScreen(isStudentMode: true),
-    AttendanceRegistrationScreen(),
-    ChatInterfaceScreen(),
-  ];
+  final ValueNotifier<bool> _showNavBar = ValueNotifier(false);
 
   void _onItemTapped(int index) {
     if (index == 1) {
-      setState(() {
-        _selectedIndex = index;
-      });
+      setState(() => _selectedIndex = index);
       return;
     }
-
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content:
@@ -280,36 +271,61 @@ class _StudentSessionScreenState extends State<StudentSessionScreen> {
   }
 
   @override
+  void dispose() {
+    _showNavBar.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: const Color(0xFF007f2f),
-        unselectedItemColor: Colors.grey,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Inicio',
+    return ValueListenableBuilder<bool>(
+      valueListenable: _showNavBar,
+      builder: (context, showBar, _) {
+        return Scaffold(
+          body: IndexedStack(
+            index: _selectedIndex,
+            children: [
+              const DashboardScreen(),
+              FaceRegistrationScreen(
+                isStudentMode: true,
+                onStudentAuthenticated: () => _showNavBar.value = true,
+                onStudentReset: () => _showNavBar.value = false,
+              ),
+              const AttendanceRegistrationScreen(),
+              const ChatInterfaceScreen(),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_a_photo),
-            label: 'Registrar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.check_circle_outline),
-            label: 'Asistencia',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment),
-            label: 'Consultas',
-          ),
-        ],
-      ),
+          bottomNavigationBar: showBar
+              ? BottomNavigationBar(
+                  type: BottomNavigationBarType.fixed,
+                  currentIndex: _selectedIndex,
+                  onTap: _onItemTapped,
+                  selectedItemColor: const Color(0xFF007f2f),
+                  unselectedItemColor: Colors.grey,
+                  selectedFontSize: 12,
+                  unselectedFontSize: 12,
+                  items: const [
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.dashboard),
+                      label: 'Inicio',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.add_a_photo),
+                      label: 'Registrar',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.check_circle_outline),
+                      label: 'Asistencia',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.assignment),
+                      label: 'Consultas',
+                    ),
+                  ],
+                )
+              : null,
+        );
+      },
     );
   }
 }

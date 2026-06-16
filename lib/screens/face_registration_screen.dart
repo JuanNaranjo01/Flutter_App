@@ -11,9 +11,13 @@ class FaceRegistrationScreen extends StatefulWidget {
   const FaceRegistrationScreen({
     super.key,
     this.isStudentMode = false,
+    this.onStudentAuthenticated,
+    this.onStudentReset,
   });
 
   final bool isStudentMode;
+  final VoidCallback? onStudentAuthenticated;
+  final VoidCallback? onStudentReset;
 
   @override
   State<FaceRegistrationScreen> createState() => _FaceRegistrationScreenState();
@@ -182,6 +186,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
             _studentVerificationChecked = true; // ya está verificado por email
           });
 
+          widget.onStudentAuthenticated?.call();
           _showConfirmationDialog();
         } else {
           setState(() {
@@ -227,17 +232,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
             _foundStudent = null;
             _errorMessage =
                 'Este estudiante no tiene correo institucional registrado. No se puede continuar con el autorregistro.';
-            _isLoading = false;
-          });
-          return;
-        }
-
-        // En modo no estudiante no se permite volver a registrar si ya tiene embeddings.
-        if (student.tieneEmbeddings) {
-          setState(() {
-            _foundStudent = null;
-            _errorMessage =
-                'Ya tiene registro facial activo para este estudiante.';
             _isLoading = false;
           });
           return;
@@ -720,7 +714,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       final response = await ApiService.registerStudentEmbeddings(
         codigoEstudiante: student.codigo,
         images: _capturedFrames!,
-        forceUpdate: widget.isStudentMode ? false : student.tieneEmbeddings,
+        forceUpdate: !widget.isStudentMode,
       );
 
       if (!mounted) return;
@@ -906,6 +900,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
 
   void _resetForm() {
     _cameraController?.dispose();
+    widget.onStudentReset?.call();
     setState(() {
       _foundStudent = null;
       _capturedFrames = null;
