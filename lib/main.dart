@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-// import 'package:google_fonts/google_fonts.dart'; // Comentado temporalmente por error de red
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/face_registration_screen.dart';
-// import 'screens/face_recognition_screen.dart'; // Comentado - no usado actualmente
 import 'screens/attendance_registration_screen.dart';
 import 'screens/chat_interface_screen.dart';
 import 'providers/data_provider.dart';
@@ -27,31 +25,28 @@ class AsistenciaGuardApp extends StatelessWidget {
     return MaterialApp(
       title: 'Synkro Asis',
       debugShowCheckedModeBanner: false,
-      // Configuración de localización para widgets de fecha
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('es', 'ES'), // Español
-        Locale('en', 'US'), // Inglés
+        Locale('es', 'ES'),
+        Locale('en', 'US'),
       ],
       locale: const Locale('es', 'ES'),
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF007f2f), // Verde corporativo UCEVA
+          seedColor: const Color(0xFF007f2f),
           brightness: Brightness.light,
         ),
-        // textTheme: GoogleFonts.interTextTheme(), // Comentado temporalmente por error de red
         scaffoldBackgroundColor: const Color(0xFFF9FAFB),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF007f2f),
           foregroundColor: Colors.white,
         ),
       ),
-      // Inicia con selector de rol
       initialRoute: '/role-selection',
       routes: {
         '/role-selection': (context) => const RoleSelectionScreen(),
@@ -190,7 +185,6 @@ class _MainScreenState extends State<MainScreen> {
     DashboardScreen(),
     FaceRegistrationScreen(isStudentMode: false),
     AttendanceRegistrationScreen(),
-    // FaceRecognitionScreen(), // Oculta temporalmente
     ChatInterfaceScreen(),
   ];
 
@@ -199,7 +193,6 @@ class _MainScreenState extends State<MainScreen> {
       _selectedIndex = index;
     });
 
-    // ✅ Actualizar datos cuando se navega a Inicio (Dashboard)
     if (index == 0) {
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
       dataProvider.refreshAttendanceRecords();
@@ -214,7 +207,7 @@ class _MainScreenState extends State<MainScreen> {
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        selectedItemColor: const Color(0xFF007f2f), // Verde corporativo UCEVA
+        selectedItemColor: const Color(0xFF007f2f),
         unselectedItemColor: Colors.grey,
         selectedFontSize: 12,
         unselectedFontSize: 12,
@@ -231,10 +224,6 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.check_circle_outline),
             label: 'Asistencia',
           ),
-          // BottomNavigationBarItem(
-          //   icon: Icon(Icons.face_retouching_natural),
-          //   label: 'Reconocer',
-          // ),
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment),
             label: 'Consultas',

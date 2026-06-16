@@ -36,7 +36,6 @@ class _StudentAttendanceDetailScreenState
     extends State<StudentAttendanceDetailScreen> {
   List<AttendanceDetail> _attendanceList = [];
   Map<String, dynamic> _summary = {};
-  Map<String, dynamic> _studentInfo = {};
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -76,20 +75,14 @@ class _StudentAttendanceDetailScreenState
           : [];
 
       setState(() {
-        // Convertir explícitamente Map<dynamic, dynamic> a Map<String, dynamic>
         final summaryData = data['summary'] ?? data['resumen'] ?? {};
-        final studentData = data['student'] ?? data['estudiante'] ?? {};
-
         _summary =
             summaryData is Map ? Map<String, dynamic>.from(summaryData) : {};
-        _studentInfo =
-            studentData is Map ? Map<String, dynamic>.from(studentData) : {};
         _isLoading = false;
       });
 
-      // ✅ Lista vacía es válida (el estudiante puede no tener registros aún)
       if (_attendanceList.isEmpty) {
-        print('ℹ️ El estudiante no tiene registros de asistencia todavía');
+        // Lista vacía válida: el estudiante puede no tener registros aún
       }
     } catch (e) {
       String friendlyMessage = 'No se pudo cargar el historial de asistencia';
@@ -115,10 +108,6 @@ class _StudentAttendanceDetailScreenState
           errorStr.contains('error del servidor')) {
         friendlyMessage = 'Error en el servidor. Intenta más tarde.';
       }
-
-      // 🐛 DEBUG: Mostrar error completo en consola para diagnóstico
-      print('❌ Error completo al cargar asistencias: $e');
-      print('📍 Stack trace disponible para revisar');
 
       setState(() {
         _errorMessage = friendlyMessage;

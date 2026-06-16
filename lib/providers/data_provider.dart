@@ -19,9 +19,7 @@ class DataProvider with ChangeNotifier {
   void loginWithTeacher(Teacher teacher) {
     _currentTeacher = teacher;
     _isAuthenticated = true;
-    print('🔐 Login completado - Token: ${_authService.sessionToken?.substring(0, 10)}...');
     notifyListeners();
-    // Cargar registros de asistencia al iniciar sesión
     refreshAttendanceRecords();
   }
 
@@ -111,13 +109,8 @@ class DataProvider with ChangeNotifier {
 
   /// Refresca los registros de asistencia desde el backend
   Future<void> refreshAttendanceRecords() async {
-    if (_currentTeacher == null) {
-      print('❌ refreshAttendanceRecords: _currentTeacher es null');
-      return;
-    }
+    if (_currentTeacher == null) return;
 
-    print(
-        '🔄 Llamando getAttendanceHistory con email: ${_currentTeacher!.email}');
     _isLoadingAttendance = true;
     _attendanceError = null;
     notifyListeners();

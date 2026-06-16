@@ -27,18 +27,9 @@ class ApiConfig {
   static const String facesEndpoint = '/faces';
   static const String attendanceEndpoint = '/attendance';
 
-  // ✅ NUEVOS ENDPOINTS FLUTTER - Sistema de Asistencias (27/02/2026)
-  // Documentados en: GUIA_RAPIDA_FRONTEND.md y PARA_FRONTEND_README.md
   static const String flutterApiPath = '$apiPath/flutter';
-
-  // GET /api/flutter/diagnostico-bd - Diagnóstico de BD (opcional, sin auth)
   static const String flutterDiagnosticEndpoint =
       '$flutterApiPath/diagnostico-bd';
-
-  // POST /api/flutter/curso/{id}/estudiantes - Lista estudiantes con estadísticas
-  // POST /api/flutter/curso/{id}/estudiante/{codigo}/detalle - Historial completo
-  // POST /api/flutter/curso/{id}/estudiante/{codigo}/faltas - Solo faltas
-  // Nota: Estos endpoints requieren session_token en el body (no en headers)
 
   // Configuración de timeouts
   static const Duration connectionTimeout = Duration(seconds: 15);

@@ -7,10 +7,6 @@ import '../config/api_config.dart';
 import '../models/teacher.dart';
 
 class AuthService {
-  // Instancia de Google Sign In
-  // NOTA: serverClientId removido temporalmente debido a ApiException: 7
-  // Para usarlo, debes configurar OAuth Consent Screen en Google Cloud Console
-  // Ver SOLUCION_GOOGLE_SIGNIN.md para instrucciones completas
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
   );
@@ -21,42 +17,28 @@ class AuthService {
 
   String? _pendingEmail;
 
-  // Variables globales para gestión de token de sesión
   String? sessionToken;
   Map<String, dynamic>? teacherData;
 
   /// Iniciar sesión con Google con detección automática de VPN
   Future<AuthResult> signInWithGoogle() async {
-    print('🔷 Iniciando login con detección automática...');
     try {
-      // 1. Cerrar sesión previa para forzar selección de cuenta
       await _googleSignIn.signOut();
-      print('🔷 Sesión previa cerrada - Se mostrará selector de cuenta');
 
-      // 2. Verificar si tenemos acceso al servidor ANTES de Google Sign-In
-      print('🔷 Verificando acceso al servidor...');
       final hasServerAccess = await _checkServerConnectivity();
-      print(hasServerAccess
-          ? '✅ Servidor accesible'
-          : '⚠️ Servidor no accesible');
 
-      // 3. Iniciar sesión con Google (ahora siempre preguntará)
       final GoogleSignInAccount? account = await _googleSignIn.signIn();
 
       if (account == null) {
-        print('❌ Usuario canceló el login');
         return AuthResult(
           success: false,
           message: 'Inicio de sesión cancelado',
         );
       }
 
-      print('✅ Google Sign-In exitoso: ${account.email}');
       _currentUser = account;
 
-      // 3. Verificar correo institucional
       if (!_isInstitutionalEmail(account.email)) {
-        print('❌ No es correo institucional');
         await _googleSignIn.signOut();
         _currentUser = null;
         return AuthResult(
@@ -65,11 +47,7 @@ class AuthService {
         );
       }
 
-      print('✅ Email institucional válido');
-
-      // 4. Si NO hay acceso al servidor, guardar email y pedir VPN
       if (!hasServerAccess) {
-        print('⚠️ Sin acceso al servidor - Se requiere VPN');
         _pendingEmail = account.email;
         return AuthResult(
           success: false,
@@ -78,13 +56,10 @@ class AuthService {
         );
       }
 
-      // 5. Si hay acceso, verificar directamente
-      print('🔷 Verificando docente en base de datos...');
       try {
         final teacher = await _verifyTeacherInDatabase(account.email);
 
         if (teacher == null) {
-          print('❌ Docente no encontrado en BD');
           await _googleSignIn.signOut();
           _currentUser = null;
           return AuthResult(
@@ -94,15 +69,13 @@ class AuthService {
           );
         }
 
-        print('✅✅✅ LOGIN EXITOSO: ${teacher.nombre}');
-        _pendingEmail = null; // Limpiar
+        _pendingEmail = null;
         return AuthResult(
           success: true,
           message: 'Inicio de sesión exitoso',
           teacher: teacher,
         );
       } catch (e) {
-        print('❌ Error al verificar con servidor: $e');
         await _googleSignIn.signOut();
         _currentUser = null;
         return AuthResult(
@@ -112,7 +85,6 @@ class AuthService {
         );
       }
     } catch (e) {
-      print('❌ ERROR EN SIGNIN: $e');
       await _googleSignIn.signOut();
       _currentUser = null;
       return AuthResult(
@@ -125,15 +97,12 @@ class AuthService {
   /// Verificar si el servidor está accesible (detecta si necesita VPN)
   Future<bool> _checkServerConnectivity() async {
     try {
-      print('🔵 Probando conectividad a: ${ApiConfig.baseUrl}');
       final response = await http
           .get(Uri.parse('${ApiConfig.baseUrl}/api/health'))
           .timeout(const Duration(seconds: 5));
-      print('🟢 Servidor respondió: ${response.statusCode}');
       return response.statusCode == 200;
     } catch (e) {
-      print('🔴 Servidor no accesible: $e');
-      return false; // No hay acceso al servidor
+      return false;
     }
   }
 
@@ -146,14 +115,10 @@ class AuthService {
       );
     }
 
-    print('🔷 Reintentando verificación para: $_pendingEmail');
-
     try {
-      // Verificar conectividad nuevamente
       final hasServerAccess = await _checkServerConnectivity();
 
       if (!hasServerAccess) {
-        print('⚠️ Servidor aún no accesible');
         return AuthResult(
           success: false,
           message: 'VPN_REQUIRED',
@@ -161,12 +126,9 @@ class AuthService {
         );
       }
 
-      print('✅ Servidor accesible - Verificando docente...');
-      // Verificar en el servidor
       final teacher = await _verifyTeacherInDatabase(_pendingEmail!);
 
       if (teacher == null) {
-        print('❌ Docente no encontrado en BD');
         await _googleSignIn.signOut();
         _currentUser = null;
         _pendingEmail = null;
@@ -177,15 +139,13 @@ class AuthService {
         );
       }
 
-      print('✅✅✅ VERIFICACIÓN EXITOSA: ${teacher.nombre}');
-      _pendingEmail = null; // Limpiar email pendiente
+      _pendingEmail = null;
       return AuthResult(
         success: true,
         message: 'Inicio de sesión exitoso',
         teacher: teacher,
       );
     } catch (e) {
-      print('❌ Error durante la verificación: $e');
       return AuthResult(
         success: false,
         message: 'Error durante la verificación: ${e.toString()}',
@@ -202,10 +162,6 @@ class AuthService {
   /// Consulta el endpoint del backend que verifica la tabla "docentes"
   Future<Teacher?> _verifyTeacherInDatabase(String email) async {
     try {
-      print(
-          '🔵 Intentando conectar a: ${ApiConfig.baseUrl}${ApiConfig.verifyTeacherEndpoint}');
-      print('🔵 Email: $email');
-
       final response = await http
           .post(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.verifyTeacherEndpoint}'),
@@ -221,56 +177,29 @@ class AuthService {
         },
       );
 
-      print('🟢 Respuesta del servidor - Código: ${response.statusCode}');
-      print('🟢 Respuesta del servidor - Body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // Si el docente existe, crear objeto Teacher
         if (data['success'] == true && data['teacher'] != null) {
-          print('✅ Docente encontrado en la base de datos');
-          
-          // ✅ GUARDAR TOKEN Y DATOS DEL PROFESOR
           sessionToken = data['session_token'];
           teacherData = data['teacher'];
-          
-          if (sessionToken != null) {
-            print('✅ Token de sesión guardado: ${sessionToken!.substring(0, 10)}...');
-            print('✅ Token expira en: ${data['token_expires_in_hours']} horas');
-          }
-          
           return Teacher.fromJson(data['teacher']);
-        } else {
-          print(
-              '❌ Respuesta exitosa pero docente no encontrado en la respuesta');
         }
       } else if (response.statusCode == 404) {
-        print('❌ Docente no encontrado (404)');
         return null;
       } else {
-        print('⚠️ Respuesta inesperada del servidor: ${response.statusCode}');
         throw Exception(
             'Error del servidor: ${response.statusCode} - ${response.body}');
       }
 
       return null;
     } on TimeoutException {
-      print('⏱️ TIMEOUT: No se pudo conectar al servidor en 30 segundos');
-      print(
-          '⏱️ URL intentada: ${ApiConfig.baseUrl}${ApiConfig.verifyTeacherEndpoint}');
-      print('⏱️ Verifica:');
-      print('   1. Servidor Flask esté corriendo en ${ApiConfig.baseUrl}');
-      print('   2. VPN o conexión de red activa');
-      print('   3. Firewall no bloquee el puerto 5000');
       throw Exception(
           'No se pudo conectar al servidor.\n\nVerifica:\n• Servidor Flask corriendo\n• VPN activa\n• Red conectada');
-    } on SocketException catch (e) {
-      print('🔴 ERROR DE RED: $e');
+    } on SocketException {
       throw Exception(
           'Error de conexión: No se puede alcanzar el servidor. ¿Tienes VPN activa?');
     } catch (e) {
-      print('🔴 ERROR GENERAL al verificar docente: $e');
       rethrow;
     }
   }
@@ -284,13 +213,9 @@ class AuthService {
 
   /// Método de logout para invalidar el token en el servidor
   Future<void> logoutTeacher() async {
-    if (sessionToken == null) {
-      print('⚠️ No hay token de sesión para invalidar');
-      return;
-    }
+    if (sessionToken == null) return;
 
     try {
-      print('🔷 Invalidando token de sesión en el servidor...');
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/api/logout_teacher'),
         headers: {'Content-Type': 'application/json'},
@@ -298,24 +223,18 @@ class AuthService {
       ).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          print('⚠️ Timeout al hacer logout - Limpiando sesión local de todos modos');
           throw TimeoutException('Timeout en logout');
         },
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print('✅ Logout exitoso: ${data['message']}');
-      } else {
-        print('⚠️ Error en logout del servidor: ${response.statusCode}');
+      if (response.statusCode != 200) {
+        // Logout fallido en servidor, continuar limpiando localmente
       }
     } catch (e) {
-      print('⚠️ Error al hacer logout en servidor: $e');
+      // Error silencioso: siempre limpiar sesión local
     } finally {
-      // Limpiar sesión local siempre
       sessionToken = null;
       teacherData = null;
-      print('✅ Sesión local limpiada');
     }
   }
 

@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:csv/csv.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import '../providers/data_provider.dart';
-import '../models/attendance_record.dart';
 import '../models/course.dart';
 import '../services/api_services.dart';
 import 'course_students_screen.dart';
@@ -17,10 +13,6 @@ class ChatInterfaceScreen extends StatefulWidget {
 }
 
 class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
-  String _searchTerm = '';
-  String _selectedSemester = 'Todos';
-  String _selectedCorte = 'Todos';
-  String _selectedMateria = 'Todas';
   bool _hasInitialized = false;
 
   // Para la sección de cursos
@@ -94,62 +86,6 @@ class _ChatInterfaceScreenState extends State<ChatInterfaceScreen> {
         final dataProvider = Provider.of<DataProvider>(context, listen: false);
         dataProvider.refreshAttendanceRecords();
       });
-    }
-  }
-
-  Future<void> _exportToCSV(List<AttendanceRecord> records) async {
-    try {
-      final rows = <List<dynamic>>[
-        [
-          'Fecha',
-          'Código',
-          'Nombre',
-          'Materia',
-          'Asistió',
-          'Horas',
-          'Semestre',
-          'Corte'
-        ]
-      ];
-
-      for (var record in records) {
-        rows.add([
-          record.fecha,
-          record.codigo,
-          record.nombre,
-          record.materia,
-          record.asistio ? 'Sí' : 'No',
-          record.horasAsistidas,
-          record.semestre,
-          record.corte,
-        ]);
-      }
-
-      final csv = const ListToCsvConverter().convert(rows);
-
-      final directory = await getApplicationDocumentsDirectory();
-      final filename = 'asistencias_$_selectedSemester'
-              '_$_selectedCorte'
-              '_$_selectedMateria.csv'
-          .replaceAll(' ', '_');
-      final path = '${directory.path}/$filename';
-      final file = File(path);
-      await file.writeAsString(csv);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('CSV exportado: $path'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al exportar: $e')),
-        );
-      }
     }
   }
 

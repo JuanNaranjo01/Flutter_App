@@ -27,7 +27,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   static const Color _ucevaGreen = Color(0xFF007F2F);
   static const Color _ucevaGreenDark = Color(0xFF0E4D2A);
   static const Color _ucevaGreenSoft = Color(0xFFEAF6EE);
-  static const Color _ucevaGreenBorder = Color(0xFFB7DEC4);
 
   final _codigoController = TextEditingController();
 
@@ -133,16 +132,11 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       try {
         final GoogleSignIn googleSignIn =
             GoogleSignIn(scopes: ['email', 'profile']);
-        print('googleSignIn: attempting signOut to force account chooser');
         try {
           await googleSignIn.signOut();
-          print('googleSignIn: signOut successful');
         } catch (e) {
-          print('googleSignIn: signOut error: $e');
         }
-        print('googleSignIn: calling signIn() to show account chooser');
         final account = await googleSignIn.signIn();
-        print('googleSignIn: signIn returned account=${account?.email}');
         if (account == null) {
           setState(() {
             _errorMessage = 'Cancelaste el inicio de sesión';
@@ -152,7 +146,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         }
 
         final email = account.email;
-        print('✅ Google Sign-In (student mode): $email');
 
         final response = await ApiService.verifyStudentByEmail(email: email);
 
@@ -304,7 +297,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                 }
 
                 final email = account.email;
-                print('✅ Google Sign-In exitoso: $email');
 
                 // Llamar al backend para verificar que este correo está en la BD
                 final response = await ApiService.verifyStudentEmail(
