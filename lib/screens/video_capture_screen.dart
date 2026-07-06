@@ -85,7 +85,8 @@ class _VideoCaptureScreenState extends State<VideoCaptureScreen>
       );
 
       await _cameraController!.initialize();
-
+      await _cameraController!.setFlashMode(FlashMode.off); // Desactiva el flash por defecto
+      
       if (mounted) {
         setState(() {
           _isCameraInitialized = true;

@@ -6,6 +6,7 @@ import 'dart:io';
 import '../services/api_services.dart';
 import '../services/video_processing_service.dart';
 import '../models/student.dart';
+import 'dart:convert';
 
 class FaceRegistrationScreen extends StatefulWidget {
   const FaceRegistrationScreen({
@@ -81,6 +82,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       );
 
       await _cameraController!.initialize();
+      await _cameraController!.setFlashMode(FlashMode.off); // Desactiva el flash por defecto
 
       if (mounted) {
         setState(() {
@@ -638,49 +640,45 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   }
 
   // PASO 3: Capturar frames con cuenta regresiva
-  Future<void> _captureFrames() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
-      _showErrorDialog('La cámara no está lista');
-      return;
+Future<void> _captureFrames() async {
+  if (_cameraController == null || !_cameraController!.value.isInitialized) {
+    _showErrorDialog('La cámara no está lista');
+    return;
+  }
+
+  setState(() {
+    _isCapturing = true;
+  });
+
+  try {
+    List<String> base64Frames = [];
+
+    for (int i = 0; i < 4; i++) {
+      final XFile image = await _cameraController!.takePicture();
+      final bytes = await image.readAsBytes();
+      final base64Image = base64Encode(bytes);
+      base64Frames.add('data:image/jpeg;base64,$base64Image');
+
+      if (i < 3) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
     }
+
+    if (!mounted) return;
 
     setState(() {
-      _isCapturing = true;
+      _isCapturing = false;
+      _capturedFrames = base64Frames;
     });
 
-    try {
-      // Capturar frames durante 3 segundos
-      final frames = await VideoProcessingService.captureFramesOverTime(
-        controller: _cameraController!,
-        durationSeconds: 3,
-        framesPerSecond: 3,
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        _isCapturing = false;
-      });
-
-      // Extraer 4 frames distribuidos uniformemente
-      final base64Frames =
-          await VideoProcessingService.extractFramesFromImages(frames);
-
-      if (!mounted) return;
-
-      setState(() {
-        _capturedFrames = base64Frames;
-      });
-
-      // Automáticamente proceder a registrar embeddings
-      _registerEmbeddings();
-    } catch (e) {
-      setState(() {
-        _isCapturing = false;
-      });
-      _showErrorDialog('Error al capturar frames: $e');
-    }
+    _registerEmbeddings();
+  } catch (e) {
+    setState(() {
+      _isCapturing = false;
+    });
+    _showErrorDialog('Error al capturar frames: $e');
   }
+}
 
   // PASO 4: Registrar embeddings
   Future<void> _registerEmbeddings() async {

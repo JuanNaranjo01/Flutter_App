@@ -61,7 +61,7 @@ class _AttendanceRegistrationScreenState
       );
 
       await _cameraController!.initialize();
-
+      await _cameraController!.setFlashMode(FlashMode.off); // desactiva el flash
       if (mounted) {
         setState(() {
           _isCameraInitialized = true;
