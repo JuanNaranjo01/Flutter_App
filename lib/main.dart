@@ -271,18 +271,10 @@ class _StudentSessionScreenState extends State<StudentSessionScreen> {
       valueListenable: _showNavBar,
       builder: (context, showBar, _) {
         return Scaffold(
-          body: IndexedStack(
-            index: _selectedIndex,
-            children: [
-              const DashboardScreen(),
-              FaceRegistrationScreen(
-                isStudentMode: true,
-                onStudentAuthenticated: () => _showNavBar.value = true,
-                onStudentReset: () => _showNavBar.value = false,
-              ),
-              const AttendanceRegistrationScreen(),
-              const ChatInterfaceScreen(),
-            ],
+          body: FaceRegistrationScreen(
+            isStudentMode: true,
+            onStudentAuthenticated: () => _showNavBar.value = true,
+            onStudentReset: () => _showNavBar.value = false,
           ),
           bottomNavigationBar: showBar
               ? BottomNavigationBar(

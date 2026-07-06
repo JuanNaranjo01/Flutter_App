@@ -30,18 +30,29 @@ class VideoProcessingService {
   }
 
   /// Convierte una lista de XFile a formato base64
-  static Future<List<String>> _convertImagesToBase64(
-      List<XFile> images) async {
-    List<String> base64Images = [];
+static Future<List<String>> _convertImagesToBase64(
+    List<XFile> images) async {
+  List<String> base64Images = [];
 
-    for (final image in images) {
-      final bytes = await File(image.path).readAsBytes();
-      final base64Image = base64Encode(bytes);
-      base64Images.add('data:image/jpeg;base64,$base64Image');
+  for (final image in images) {
+    final file = File(image.path);
+    final bytes = await file.readAsBytes();
+    final base64Image = base64Encode(bytes);
+    base64Images.add('data:image/jpeg;base64,$base64Image');
+
+    // NUEVO: borrar el archivo temporal inmediatamente después de leerlo
+    try {
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {
+      // si falla el borrado no debe interrumpir el flujo, pero
+      // idealmente registra el error en tus logs internos
     }
-
-    return base64Images;
   }
+
+  return base64Images;
+}
 
   /// Captura frames durante un período de tiempo
   /// [controller]: Controlador de la cámara

@@ -43,6 +43,141 @@ class _AttendanceRegistrationScreenState
         return;
       }
 
+      // NUEVO: pedir consentimiento explícito antes de capturar datos biométricos
+      final bool? consent = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          bool consentAccepted = false;
+
+          return StatefulBuilder(
+            builder: (context, dialogSetState) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              content: SingleChildScrollView(
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 4,
+                  shadowColor: const Color(0xFF007F2F).withValues(alpha: 0.2),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFFEAF6EE),
+                          Color(0xFFDDF0E4),
+                        ],
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF007F2F),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.privacy_tip,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Consentimiento biometrico',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                      color: Color(0xFF0E4D2A),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Requerido antes de registrar asistencia',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF007F2F),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Vamos a capturar tu rostro para generar una representacion matematica '
+                          '(embedding) y asociarla a tu codigo estudiantil, con el unico fin de registrar tu asistencia. '
+                          'La imagen de tu rostro no se almacena en ningun servidor ni dispositivo; solo se guarda el embedding resultante. '
+                          'Puedes solicitar la eliminacion de tu registro en cualquier momento.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF0E4D2A),
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: consentAccepted,
+                          onChanged: (value) {
+                            dialogSetState(() {
+                              consentAccepted = value ?? false;
+                            });
+                          },
+                          title: const Text(
+                            'Acepto el tratamiento de mis datos biometricos para registrar asistencia.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: consentAccepted
+                      ? () => Navigator.pop(context, true)
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF007f2f),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Continuar'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      if (consent != true) return; // el usuario no aceptó, no se captura nada
+
       // Inicializar por defecto con frontal si existe.
       if (_currentCameraIndex < 0 || _currentCameraIndex >= _cameras!.length) {
         final frontIndex = _cameras!.indexWhere(

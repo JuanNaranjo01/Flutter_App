@@ -4,7 +4,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:async';
 import 'dart:io';
 import '../services/api_services.dart';
-import '../services/video_processing_service.dart';
 import '../models/student.dart';
 import 'dart:convert';
 
@@ -38,9 +37,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   bool _isProcessing = false;
   bool _isCapturing = false;
   String? _errorMessage;
-  bool _isGoogleSigningIn = false;
-  bool _studentVerificationChecked = false;
-  String? _studentVerificationError;
 
   // Cámara
   CameraController? _cameraController;
@@ -178,7 +174,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
           setState(() {
             _foundStudent = student;
             _isLoading = false;
-            _studentVerificationChecked = true; // ya está verificado por email
           });
 
           widget.onStudentAuthenticated?.call();
@@ -274,92 +269,26 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
           return const SizedBox.shrink();
         }
 
+        bool consentAccepted = false;
+
         return StatefulBuilder(
           builder: (context, dialogSetState) {
-            Future<void> verifyStudentWithGoogle() async {
-              dialogSetState(() {
-                _isGoogleSigningIn = true;
-                _studentVerificationError = null;
-              });
-
-              try {
-                final GoogleSignIn googleSignIn = GoogleSignIn(
-                  scopes: ['email', 'profile'],
-                );
-
-                // Realizar Google Sign In
-                final account = await googleSignIn.signIn();
-                if (account == null) {
-                  dialogSetState(() {
-                    _isGoogleSigningIn = false;
-                    _studentVerificationError =
-                        'Cancelaste el inicio de sesión';
-                  });
-                  return;
-                }
-
-                final email = account.email;
-
-                // Llamar al backend para verificar que este correo está en la BD
-                final response = await ApiService.verifyStudentEmail(
-                  email: email,
-                  codigoEstudiante: student.codigo,
-                );
-
-                if (!mounted) return;
-
-                if (response['success'] == true) {
-                  dialogSetState(() {
-                    _isGoogleSigningIn = false;
-                    _studentVerificationChecked = true;
-                  });
-                } else {
-                  dialogSetState(() {
-                    _isGoogleSigningIn = false;
-                    _studentVerificationError =
-                        response['message'] ?? 'Email no válido';
-                  });
-                }
-              } catch (e) {
-                if (!mounted) return;
-
-                dialogSetState(() {
-                  _isGoogleSigningIn = false;
-                  _studentVerificationError = 'Error: ${e.toString()}';
-                });
-              }
-            }
-
             return AlertDialog(
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
-              title: widget.isStudentMode
-                  ? null
-                  : const Text('Confirmar Registro'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (!widget.isStudentMode) ...[
-                      Text(
-                        student.nombreCompleto,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade700,
-                        ),
+                    Text(
+                      student.nombreCompleto,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Se iniciará el registro facial de este estudiante.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
+                    ),
                     if (student.tieneEmbeddings) ...[
                       const SizedBox(height: 12),
                       Container(
@@ -408,204 +337,107 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                       ),
                       const SizedBox(height: 16),
                     ],
-                    if (widget.isStudentMode) ...[
-                      const SizedBox(height: 16),
-                      Card(
-                        shape: RoundedRectangleBorder(
+                    const SizedBox(height: 16),
+                    Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 4,
+                      shadowColor: _ucevaGreen.withValues(alpha: 0.2),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 4,
-                        shadowColor: _ucevaGreen.withOpacity(0.2),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                _ucevaGreenSoft,
-                                const Color(0xFFDDF0E4),
-                              ],
-                            ),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              _ucevaGreenSoft,
+                              const Color(0xFFDDF0E4),
+                            ],
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header con progreso
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: _studentVerificationChecked
-                                          ? Colors.green.shade500
-                                          : _ucevaGreen,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      _studentVerificationChecked
-                                          ? Icons.check_circle
-                                          : Icons.account_circle,
-                                      color: Colors.white,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Verificación con Google',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 14,
-                                            color: _ucevaGreenDark,
-                                          ),
-                                        ),
-                                        Text(
-                                          _studentVerificationChecked
-                                              ? '✓ Verificado'
-                                              : 'Inicia sesión con tu correo institucional',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: _ucevaGreen,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              if (_studentVerificationChecked) ...[
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
                                 Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Colors.green.shade50,
+                                    color: _ucevaGreen,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.green.shade200,
-                                      width: 1.5,
-                                    ),
                                   ),
-                                  child: Row(
+                                  child: const Icon(
+                                    Icons.privacy_tip,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Icon(
-                                        Icons.verified_user,
-                                        color: Colors.green.shade700,
-                                        size: 20,
+                                      Text(
+                                        'Consentimiento biométrico',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14,
+                                          color: _ucevaGreenDark,
+                                        ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          'Verificación completada correctamente',
-                                          style: TextStyle(
-                                            color: Colors.green.shade900,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 13,
-                                          ),
+                                      Text(
+                                        'Requerido antes de registrar embeddings',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: _ucevaGreen,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              ] else ...[
-                                Text(
-                                  'Haz clic en el botón para iniciar sesión con Google usando tu correo institucional:',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: _ucevaGreenDark,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                // Botón Google Sign In
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    onPressed: _isGoogleSigningIn
-                                        ? null
-                                        : verifyStudentWithGoogle,
-                                    icon: _isGoogleSigningIn
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                      Colors.white),
-                                            ),
-                                          )
-                                        : const Icon(Icons.login),
-                                    label: Text(
-                                      _isGoogleSigningIn
-                                          ? 'Iniciando sesión...'
-                                          : 'Iniciar sesión con Google',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: _ucevaGreen,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                if (_studentVerificationError != null) ...[
-                                  const SizedBox(height: 12),
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.shade50,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: Colors.red.shade200,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.error_outline,
-                                          color: Colors.red.shade700,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            _studentVerificationError!,
-                                            style: TextStyle(
-                                              color: Colors.red.shade900,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
                               ],
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Vamos a capturar tu rostro para generar una representación matemática '
+                              '(embedding) y asociarla a tu código estudiantil, con el único fin de registrar tu identidad. '
+                              'La imagen de tu rostro no se almacena en ningún servidor ni dispositivo; solo se guarda el embedding resultante. '
+                              'Puedes solicitar la eliminación de tu registro en cualquier momento.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _ucevaGreenDark,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            CheckboxListTile(
+                              contentPadding: EdgeInsets.zero,
+                              value: consentAccepted,
+                              onChanged: (value) {
+                                dialogSetState(() {
+                                  consentAccepted = value ?? false;
+                                });
+                              },
+                              title: Text(
+                                widget.isStudentMode
+                                    ? 'Acepto el tratamiento de mis datos biométricos para registrar embeddings.'
+                                    : 'Confirmo que cuento con el consentimiento del estudiante para registrar sus datos biométricos.',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              controlAffinity: ListTileControlAffinity.leading,
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -618,15 +450,14 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                   child: const Text('Cancelar'),
                 ),
                 ElevatedButton(
-                  onPressed:
-                      widget.isStudentMode && !_studentVerificationChecked
-                          ? null
-                          : () {
-                              Navigator.pop(context);
-                              _initializeCamera();
-                            },
+                  onPressed: consentAccepted
+                      ? () {
+                          Navigator.pop(context);
+                          _initializeCamera();
+                        }
+                      : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3b82f6),
+                    backgroundColor: const Color(0xFF007f2f),
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Continuar'),
@@ -684,16 +515,6 @@ Future<void> _captureFrames() async {
   Future<void> _registerEmbeddings() async {
     final student = _foundStudent;
     if (student == null || _capturedFrames == null) return;
-
-    if (widget.isStudentMode && !_studentVerificationChecked) {
-      _showErrorDialog(
-        'Primero debes verificar tu identidad con Google.',
-      );
-      setState(() {
-        _isProcessing = false;
-      });
-      return;
-    }
 
     setState(() {
       _isProcessing = true;
@@ -896,9 +717,6 @@ Future<void> _captureFrames() async {
       _capturedFrames = null;
       _codigoController.clear();
       _errorMessage = null;
-      _isGoogleSigningIn = false;
-      _studentVerificationChecked = false;
-      _studentVerificationError = null;
       // Removed OTP-related state (switched to Google Sign In flow)
       _cameraController = null;
       _isCameraInitialized = false;
