@@ -7,6 +7,8 @@ import 'screens/face_registration_screen.dart';
 import 'screens/attendance_registration_screen.dart';
 import 'screens/chat_interface_screen.dart';
 import 'providers/data_provider.dart';
+import './services/api_services.dart';
+
 
 void main() {
   runApp(
@@ -17,9 +19,37 @@ void main() {
   );
 }
 
-class AsistenciaGuardApp extends StatelessWidget {
+class AsistenciaGuardApp extends StatefulWidget {
   const AsistenciaGuardApp({super.key});
 
+  @override
+  State<AsistenciaGuardApp> createState() => _AsistenciaGuardAppState();
+}
+class _AsistenciaGuardAppState extends State<AsistenciaGuardApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Registrar observer para el ciclo de vida
+    WidgetsBinding.instance.addObserver(this);
+  }
+  @override
+  void dispose() {
+    // ✅ 🔥 CERRAR EL CLIENTE HTTP AQUÍ
+    ApiService.dispose();
+    print('🔄 ApiService cerrado correctamente al cerrar la app');
+    
+    // ✅ Remover el observer
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // ✅ OPCIONAL: Cerrar también cuando la app se cierra por completo
+    if (state == AppLifecycleState.detached) {
+      ApiService.dispose();
+      print('🔄 ApiService cerrado correctamente (app cerrada)');
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

@@ -1,5 +1,5 @@
 class ApiConfig {
-  static const String baseUrl = 'http://192.168.14.25';
+  static const String baseUrl = 'https://192.168.14.25';
   static const String apiPath = '/api';
   static const String fullApiUrl = '$baseUrl$apiPath';
 

@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:http/io_client.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'dart:async';
 import '../config/api_config.dart';
 import '../models/student.dart';
@@ -18,31 +19,66 @@ import '../models/reporte_docente.dart';
 import '../models/calculo_horas.dart';
 
 class ApiService {
+
+  static http.Client _getClient() {
+      final ioClient = HttpClient()
+        ..badCertificateCallback = (X509Certificate cert, String host, int port) {
+          // ⚠️ SOLO PARA DESARROLLO - En producción usar certificados válidos
+          // y eliminar esta línea
+          if (host == '192.168.14.25') {
+            return true; // Acepta certificado autofirmado para esta IP
+          }
+          return false;
+        };
+      return IOClient(ioClient);
+    }
+
   // Cliente HTTP con timeouts configurados
-  static final _httpClient = http.Client();
+  static final http.Client _httpClient = _getClient();
 
-  static Future<Map<String, dynamic>> login(
-      String codigo, String password) async {
+  static http.Client get httpClient => _httpClient;
+
+
+  static void dispose() {_httpClient.close();}
+
+  // ✅ NUEVO: Método para health check
+  static Future<bool> checkServerHealth() async {
     try {
-      final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'codigo': codigo, 'password': password}),
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Error: ${response.statusCode}');
-      }
+      print('🔍 Verificando salud del servidor...');
+      final response = await _httpClient.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/health'),
+      ).timeout(const Duration(seconds: 5));
+      
+      print('📡 Health check status: ${response.statusCode}');
+      return response.statusCode == 200;
     } catch (e) {
-      throw Exception('Error de conexión: $e');
+      print('❌ Health check falló: $e');
+      return false;
     }
   }
 
+  static Future<Map<String, dynamic>> login(
+        String codigo, String password) async {
+      try {
+        final response = await _httpClient.post(
+          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'codigo': codigo, 'password': password}),
+        );
+
+        if (response.statusCode == 200) {
+          return jsonDecode(response.body);
+        } else {
+          throw Exception('Error: ${response.statusCode}');
+        }
+      } catch (e) {
+        throw Exception('Error de conexión: $e');
+      }
+    }
+
   static Future<List<dynamic>> getRegisteredFaces() async {
     try {
-      final response = await http.get(
+      final response = await _httpClient.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.facesEndpoint}'),
         headers: {'Content-Type': 'application/json'},
       );
@@ -59,7 +95,7 @@ class ApiService {
 
   static Future<List<dynamic>> getAttendanceRecords() async {
     try {
-      final response = await http.get(
+      final response = await _httpClient.get(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.attendanceEndpoint}'),
         headers: {'Content-Type': 'application/json'},
       );

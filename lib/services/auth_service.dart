@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 import '../config/api_config.dart';
 import '../models/teacher.dart';
+import '../services/api_services.dart';
 
 class AuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
@@ -94,14 +95,14 @@ class AuthService {
     }
   }
 
-  /// Verificar si el servidor está accesible (detecta si necesita VPN)
   Future<bool> _checkServerConnectivity() async {
     try {
-      final response = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}/api/health'))
-          .timeout(const Duration(seconds: 5));
-      return response.statusCode == 200;
+      // ✅ Usar el método de ApiService
+      final isHealthy = await ApiService.checkServerHealth();
+      print('🔍 Servidor saludable: $isHealthy');
+      return isHealthy;
     } catch (e) {
+      print('❌ Error en checkServerConnectivity: $e');
       return false;
     }
   }
@@ -162,13 +163,11 @@ class AuthService {
   /// Consulta el endpoint del backend que verifica la tabla "docentes"
   Future<Teacher?> _verifyTeacherInDatabase(String email) async {
     try {
-      final response = await http
-          .post(
+      final response = await ApiService.httpClient.post(
         Uri.parse('${ApiConfig.baseUrl}${ApiConfig.verifyTeacherEndpoint}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
-      )
-          .timeout(
+      ).timeout(
         const Duration(seconds: 30),
         onTimeout: () {
           throw TimeoutException(
@@ -176,6 +175,9 @@ class AuthService {
           );
         },
       );
+
+      print('📡 Respuesta verifyTeacher: ${response.statusCode}');
+      print('📦 Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -186,6 +188,7 @@ class AuthService {
           return Teacher.fromJson(data['teacher']);
         }
       } else if (response.statusCode == 404) {
+        print('❌ Docente no encontrado (404)');
         return null;
       } else {
         throw Exception(
@@ -200,6 +203,7 @@ class AuthService {
       throw Exception(
           'Error de conexión: No se puede alcanzar el servidor. ¿Tienes VPN activa?');
     } catch (e) {
+      print('❌ Error en _verifyTeacherInDatabase: $e');
       rethrow;
     }
   }
